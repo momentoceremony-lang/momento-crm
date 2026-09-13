@@ -59,6 +59,7 @@ function checkCRMAuth() {
     // 2. Hide login, show dashboard
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('dashboard-container').style.display = 'flex';
+    loadPendingArtists();
 
     // 3. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
@@ -185,3 +186,101 @@ window.addEventListener('popstate', function(event) {
         executeVisualTabSwitch(hash);
     }
 });
+
+// ==========================================
+// ARTIST VERIFICATION ENGINE
+// ==========================================
+async function loadPendingArtists() {
+    const grid = document.getElementById('pending-artists-grid');
+    if (!grid) return;
+    grid.innerHTML = '<p style="opacity: 0.7;">Fetching pending applications...</p>';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/pending-artists`);
+        const data = await res.json();
+
+        if (data.success) {
+            grid.innerHTML = '';
+            if (data.data.length === 0) {
+                grid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No pending applications right now.</p>';
+                return;
+            }
+
+            data.data.forEach(pro => {
+                const dp = pro.dp_url || 'https://via.placeholder.com/60?text=No+DP';
+                const specs = pro.specialties ? pro.specialties.join(', ') : 'None';
+                const phone = pro.phone || 'N/A';
+                const email = pro.email || 'N/A';
+                
+                // Count portfolio images to see if they actually set up their account
+                const galleryCount = pro.gallery ? pro.gallery.length : 0;
+
+                grid.innerHTML += `
+                    <div class="crm-card">
+                        <div class="crm-card-header">
+                            <img src="${dp}" class="crm-card-dp" alt="DP">
+                            <div>
+                                <div class="crm-card-title">${pro.name}</div>
+                                <div class="crm-card-subtitle">${pro.pro_type || 'Photographer'}</div>
+                            </div>
+                        </div>
+                        <div class="crm-card-body">
+                            <p><strong>Email:</strong> ${email}</p>
+                            <p><strong>Phone:</strong> ${phone}</p>
+                            <p><strong>Specialties:</strong> ${specs}</p>
+                            <p><strong>Portfolio Items:</strong> ${galleryCount} images</p>
+                        </div>
+                        <div class="crm-card-actions">
+                            <button class="btn-reject" onclick="rejectArtist('${pro.id}')">Reject</button>
+                            <button class="btn-approve" onclick="approveArtist('${pro.id}')">Approve</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    } catch (e) {
+        grid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
+    }
+}
+
+async function approveArtist(id) {
+    if (!confirm("Are you sure you want to approve this artist? They will instantly appear on the live website.")) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/approve-artist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            loadPendingArtists(); // Refresh the list
+        } else {
+            alert("Error approving artist.");
+        }
+    } catch (e) {
+        alert("Network error.");
+    }
+}
+
+async function rejectArtist(id) {
+    if (!confirm("Are you sure you want to REJECT and DELETE this application permanently?")) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/reject-artist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            loadPendingArtists(); // Refresh the list
+        } else {
+            alert("Error rejecting artist.");
+        }
+    } catch (e) {
+        alert("Network error.");
+    }
+}
