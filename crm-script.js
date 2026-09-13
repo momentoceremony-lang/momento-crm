@@ -34,7 +34,8 @@ async function loginCRM() {
             alert(data.error);
         }
     } catch (e) {
-        alert("Connection failed.");
+        console.error(e);
+        alert("Connection failed. Check browser console or Railway logs.");
     } finally {
         btn.innerText = "Authenticate";
     }
