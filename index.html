@@ -82,8 +82,35 @@
                 </div>
             </section>
             
+            <!-- BOOKINGS PIPELINE -->
             <section id="tab-bookings" class="crm-tab">
-                <p>Booking pipeline loading...</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="font-size: 1.8rem; color: var(--primary-color);">Booking Pipeline</h2>
+                        <p style="opacity: 0.8; font-size: 0.9rem;">Manage incoming requests and active jobs.</p>
+                    </div>
+                    <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadBookings()">↻ Refresh</button>
+                </div>
+
+                <div class="kanban-board">
+                    <!-- Column 1: New Requests -->
+                    <div class="kanban-column">
+                        <div class="kanban-header">New Requests <span id="count-pending" class="kanban-badge">0</span></div>
+                        <div id="col-pending" class="kanban-body"></div>
+                    </div>
+                    
+                    <!-- Column 2: Quotation Sent (Bill Pending) -->
+                    <div class="kanban-column">
+                        <div class="kanban-header">Bill Pending <span id="count-quotation_sent" class="kanban-badge">0</span></div>
+                        <div id="col-quotation_sent" class="kanban-body"></div>
+                    </div>
+
+                    <!-- Column 3: Confirmed -->
+                    <div class="kanban-column">
+                        <div class="kanban-header" style="border-top-color: #27ae60;">Confirmed <span id="count-confirmed" class="kanban-badge" style="background: #27ae60;">0</span></div>
+                        <div id="col-confirmed" class="kanban-body"></div>
+                    </div>
+                </div>
             </section>
 
             <section id="tab-feedback" class="crm-tab">
@@ -110,6 +137,56 @@
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button class="btn-primary" style="background: #ccc; color: #333;" onclick="closeRejectModal()">Cancel</button>
                 <button class="btn-reject" onclick="submitRejection()">Send Email & Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUOTATION CALCULATOR MODAL -->
+    <div id="modal-quotation" class="modal">
+        <div class="modal-content auth-box" style="max-width: 450px; text-align: left;">
+            <h2 style="color: var(--primary-color); margin-bottom: 5px;">Build Quotation</h2>
+            <p id="quote-ticket-display" style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 20px; font-weight: bold;"></p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label style="font-size: 0.8rem; opacity: 0.8;">Artist Daily Rate (₹)</label>
+                    <input type="number" id="quote-rate" class="crm-input" placeholder="e.g. 15000" oninput="calculateQuotation()">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; opacity: 0.8;">Number of Days</label>
+                    <input type="number" id="quote-days" class="crm-input" value="1" min="1" oninput="calculateQuotation()">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 0.8rem; opacity: 0.8;">Discount Amount (₹) - Optional</label>
+                <input type="number" id="quote-discount" class="crm-input" placeholder="0" oninput="calculateQuotation()">
+            </div>
+
+            <div style="background: #fcf9f6; border: 1px dashed var(--accent-color); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem;">
+                    <span>Artist Total:</span> <span id="calc-artist">₹0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem;">
+                    <span>Momento Margin (20%):</span> <span id="calc-margin">₹0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: #27ae60;">
+                    <span>Discount Applied:</span> <span id="calc-discount">-₹0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem; border-top: 1px solid #ddd; padding-top: 10px;">
+                    <span>Final Quote:</span> <span id="calc-total" style="color: var(--primary-color);">₹0</span>
+                </div>
+            </div>
+
+            <!-- Hidden data fields -->
+            <input type="hidden" id="quote-ticket-id">
+            <input type="hidden" id="quote-cust-email">
+            <input type="hidden" id="quote-cust-name">
+            <input type="hidden" id="quote-pro-name">
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" style="background: #ccc; color: #333;" onclick="closeQuotationModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitQuotation()" id="btn-send-quote">Send Email</button>
             </div>
         </div>
     </div>
