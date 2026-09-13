@@ -60,6 +60,7 @@
                 <span class="mobile-nav-toggle" onclick="toggleSidebar()">&#8942;</span>
             </header>
             
+            <!-- VERIFICATION TAB -->
             <section id="tab-verification" class="crm-tab active-tab">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <div>
@@ -69,8 +70,15 @@
                     <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadPendingArtists()">↻ Refresh</button>
                 </div>
                 
-                <div id="pending-artists-grid" class="crm-card-grid">
-                    <!-- JS will inject artist cards here -->
+                <div id="pending-artists-grid" class="crm-card-grid"></div>
+
+                <!-- NEW: REJECTED / ACTION REQUIRED SECTION -->
+                <div style="margin-top: 50px;">
+                    <div style="margin-bottom: 20px;">
+                        <h2 style="font-size: 1.5rem; color: #e74c3c;">Action Required (Rejected)</h2>
+                        <p style="opacity: 0.8; font-size: 0.9rem;">Artists waiting to fix their profiles based on your feedback.</p>
+                    </div>
+                    <div id="rejected-artists-grid" class="crm-card-grid"></div>
                 </div>
             </section>
             
@@ -90,6 +98,20 @@
                 <p>Maintenance controls loading...</p>
             </section>
         </main>
+    </div>
+
+    <!-- REJECTION REASON MODAL -->
+    <div id="modal-reject-reason" class="modal">
+        <div class="modal-content auth-box" style="max-width: 500px; text-align: left;">
+            <h2 style="color: #e74c3c; margin-bottom: 10px;">Provide Feedback</h2>
+            <p style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 20px;">This reason will be emailed directly to the artist so they can fix their profile.</p>
+            <textarea id="reject-reason-text" class="crm-input" rows="4" placeholder="e.g., Please upload a clear studio logo and at least 5 high-quality portfolio images..." style="resize: none;"></textarea>
+            <input type="hidden" id="reject-artist-id">
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn-primary" style="background: #ccc; color: #333;" onclick="closeRejectModal()">Cancel</button>
+                <button class="btn-reject" onclick="submitRejection()">Send Email & Reject</button>
+            </div>
+        </div>
     </div>
 
     <script src="crm-script.js"></script>
