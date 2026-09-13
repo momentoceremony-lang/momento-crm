@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Center | Momento CRM</title>
+    <link rel="icon" type="image/png" href="Stock/logo.png">
+    <link rel="stylesheet" href="crm-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body class="crm-body">
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-container" class="auth-wrapper">
+        <div class="auth-box">
+            <img src="Stock/logo.png" alt="Momento Logo" class="auth-logo">
+            <h2>CRM Gateway</h2>
+            <input type="text" id="crm-username" class="crm-input" placeholder="Username" autocomplete="off">
+            <input type="password" id="crm-password" class="crm-input" placeholder="Password">
+            <button class="btn-primary" onclick="loginCRM()" id="login-btn">Authenticate</button>
+        </div>
+    </div>
+
+    <!-- FORCE PASSWORD RESET MODAL -->
+    <div id="modal-reset-password" class="modal">
+        <div class="modal-content auth-box">
+            <h2 style="color: #e74c3c;">Security Alert</h2>
+            <p style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 20px;">You are using a default password. For platform security, you must update it now.</p>
+            <input type="password" id="new-password" class="crm-input" placeholder="New Password">
+            <input type="password" id="confirm-password" class="crm-input" placeholder="Confirm New Password">
+            <ul style="text-align: left; font-size: 0.8rem; opacity: 0.7; margin-bottom: 15px; padding-left: 20px;">
+                <li>Must contain a special character (e.g., @, #, $, !)</li>
+                <li>Cannot be your username</li>
+            </ul>
+            <button class="btn-primary" onclick="submitPasswordReset()">Update Password</button>
+        </div>
+    </div>
+
+    <!-- DASHBOARD SHELL (Hidden by default) -->
+    <div id="dashboard-container" style="display: none; height: 100vh;">
+        <nav class="crm-sidebar">
+            <div class="sidebar-brand">
+                <img src="Stock/logo.png" alt="Momento" class="sidebar-logo">
+                <h3>Command Center</h3>
+                <p id="active-role-badge" class="role-badge"></p>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="active" onclick="switchTab('verification')">🛡️ Verification</li>
+                <li onclick="switchTab('bookings')">📅 Bookings</li>
+                <li onclick="switchTab('feedback')">💬 Feedback</li>
+                <li id="menu-admin" onclick="switchTab('admin')" style="display: none;">👥 Manage Users</li>
+                <li id="menu-dev" onclick="switchTab('developer')" style="display: none; color: #e74c3c;">⚙️ System Switch</li>
+                <li onclick="logoutCRM()" style="color: #d19a8a; margin-top: auto;">🚪 Logout</li>
+            </ul>
+        </nav>
+
+        <main class="crm-main">
+            <header class="crm-header">
+                <h1 id="tab-title">Artist Verification</h1>
+                <span class="mobile-nav-toggle" onclick="toggleSidebar()">&#8942;</span>
+            </header>
+            
+            <section id="tab-verification" class="crm-tab active-tab">
+                <p>Verification module loading...</p>
+            </section>
+            
+            <section id="tab-bookings" class="crm-tab">
+                <p>Booking pipeline loading...</p>
+            </section>
+
+            <section id="tab-feedback" class="crm-tab">
+                <p>Feedback module loading...</p>
+            </section>
+
+            <section id="tab-admin" class="crm-tab">
+                <p>Admin controls loading...</p>
+            </section>
+
+            <section id="tab-developer" class="crm-tab">
+                <p>Maintenance controls loading...</p>
+            </section>
+        </main>
+    </div>
+
+    <script src="crm-script.js"></script>
+</body>
+</html>
