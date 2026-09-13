@@ -61,7 +61,17 @@
             </header>
             
             <section id="tab-verification" class="crm-tab active-tab">
-                <p>Verification module loading...</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="font-size: 1.8rem; color: var(--primary-color);">Pending Approvals</h2>
+                        <p style="opacity: 0.8; font-size: 0.9rem;">Review and approve new professional accounts.</p>
+                    </div>
+                    <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadPendingArtists()">↻ Refresh</button>
+                </div>
+                
+                <div id="pending-artists-grid" class="crm-card-grid">
+                    <!-- JS will inject artist cards here -->
+                </div>
             </section>
             
             <section id="tab-bookings" class="crm-tab">
