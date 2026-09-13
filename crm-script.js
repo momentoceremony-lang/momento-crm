@@ -324,3 +324,24 @@ async function submitRejection() {
         btn.innerText = "Send Email & Reject";
     }
 }
+
+/* ==========================================
+   KANBAN PIPELINE
+========================================== */
+.kanban-board { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; }
+.kanban-column { flex: 1; min-width: 300px; background: #eaddd740; border-radius: 12px; display: flex; flex-direction: column; height: 70vh; }
+.kanban-header { font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.2rem; padding: 15px; background: white; border-radius: 12px 12px 0 0; border-top: 4px solid var(--accent-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+.kanban-badge { background: var(--accent-color); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-family: 'Lato', sans-serif; }
+.kanban-body { padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px; }
+
+/* Booking Card */
+.booking-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid var(--accent-color); font-size: 0.9rem; }
+.booking-card h4 { color: var(--primary-color); margin-bottom: 5px; font-size: 1.1rem; }
+.booking-card .ticket-id { font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; }
+.booking-card-detail { opacity: 0.8; margin-top: 8px; line-height: 1.5; }
+.booking-card-actions { margin-top: 15px; display: flex; gap: 10px; }
+.btn-action-small { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; transition: 0.2s; }
+.btn-quote { background: var(--primary-color); color: white; }
+.btn-quote:hover { background: var(--accent-color); }
+.btn-contact { background: #f0f0f0; color: #333; text-decoration: none; text-align: center; }
+.btn-contact:hover { background: #e0e0e0; }
