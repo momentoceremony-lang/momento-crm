@@ -325,23 +325,148 @@ async function submitRejection() {
     }
 }
 
-/* ==========================================
-   KANBAN PIPELINE
-========================================== */
-.kanban-board { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; }
-.kanban-column { flex: 1; min-width: 300px; background: #eaddd740; border-radius: 12px; display: flex; flex-direction: column; height: 70vh; }
-.kanban-header { font-family: 'Playfair Display', serif; font-weight: bold; font-size: 1.2rem; padding: 15px; background: white; border-radius: 12px 12px 0 0; border-top: 4px solid var(--accent-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-.kanban-badge { background: var(--accent-color); color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-family: 'Lato', sans-serif; }
-.kanban-body { padding: 15px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 15px; }
+// ==========================================
+// BOOKING PIPELINE & QUOTATIONS
+// ==========================================
+async function loadBookings() {
+    const colPending = document.getElementById('col-pending');
+    const colQuotation = document.getElementById('col-quotation_sent');
+    const colConfirmed = document.getElementById('col-confirmed');
+    if (!colPending) return;
 
-/* Booking Card */
-.booking-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid var(--accent-color); font-size: 0.9rem; }
-.booking-card h4 { color: var(--primary-color); margin-bottom: 5px; font-size: 1.1rem; }
-.booking-card .ticket-id { font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; }
-.booking-card-detail { opacity: 0.8; margin-top: 8px; line-height: 1.5; }
-.booking-card-actions { margin-top: 15px; display: flex; gap: 10px; }
-.btn-action-small { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; width: 100%; transition: 0.2s; }
-.btn-quote { background: var(--primary-color); color: white; }
-.btn-quote:hover { background: var(--accent-color); }
-.btn-contact { background: #f0f0f0; color: #333; text-decoration: none; text-align: center; }
-.btn-contact:hover { background: #e0e0e0; }
+    colPending.innerHTML = ''; colQuotation.innerHTML = ''; colConfirmed.innerHTML = '';
+    document.getElementById('count-pending').innerText = '0';
+    document.getElementById('count-quotation_sent').innerText = '0';
+    document.getElementById('count-confirmed').innerText = '0';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/bookings`);
+        const data = await res.json();
+
+        if (data.success) {
+            let pCount = 0, qCount = 0, cCount = 0;
+
+            data.data.forEach(booking => {
+                const dates = `${new Date(booking.start_date).toLocaleDateString()} to ${new Date(booking.end_date).toLocaleDateString()}`;
+                
+                let actionBtn = '';
+                if (booking.status === 'pending') {
+                    actionBtn = `<button class="btn-action-small btn-quote" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
+                    pCount++;
+                } else if (booking.status === 'quotation_sent') {
+                    actionBtn = `<div style="text-align:center; font-weight:bold; color:var(--accent-color);">₹${booking.quotation_amount} Quoted</div>`;
+                    qCount++;
+                } else {
+                    actionBtn = `<div style="text-align:center; font-weight:bold; color:#27ae60;">Confirmed</div>`;
+                    cCount++;
+                }
+
+                const cardHTML = `
+                    <div class="booking-card">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h4>${booking.customer_name}</h4>
+                            <span class="ticket-id">${booking.ticket_id}</span>
+                        </div>
+                        <div class="booking-card-detail">
+                            <strong>Artist:</strong> ${booking.pro_name} (${booking.artist_type})<br>
+                            <strong>Dates:</strong> ${dates}<br>
+                            <strong>Category:</strong> ${booking.category}<br>
+                        </div>
+                        <div class="booking-card-actions">
+                            <a href="tel:${booking.customer_phone}" class="btn-action-small btn-contact">📞 Call</a>
+                            <a href="mailto:${booking.customer_email}" class="btn-action-small btn-contact">✉️ Email</a>
+                        </div>
+                        <div style="margin-top: 10px;">${actionBtn}</div>
+                    </div>
+                `;
+
+                if (booking.status === 'pending') colPending.innerHTML += cardHTML;
+                else if (booking.status === 'quotation_sent') colQuotation.innerHTML += cardHTML;
+                else colConfirmed.innerHTML += cardHTML;
+            });
+
+            document.getElementById('count-pending').innerText = pCount;
+            document.getElementById('count-quotation_sent').innerText = qCount;
+            document.getElementById('count-confirmed').innerText = cCount;
+        }
+    } catch (e) {
+        console.error("Failed to load bookings", e);
+    }
+}
+
+// Quotation Calculator Logic
+function openQuotationModal(ticketId, custName, custEmail, proName) {
+    document.getElementById('quote-ticket-display').innerText = `Ticket: ${ticketId} | Client: ${custName}`;
+    document.getElementById('quote-ticket-id').value = ticketId;
+    document.getElementById('quote-cust-name').value = custName;
+    document.getElementById('quote-cust-email').value = custEmail;
+    document.getElementById('quote-pro-name').value = proName;
+    
+    document.getElementById('quote-rate').value = '';
+    document.getElementById('quote-days').value = '1';
+    document.getElementById('quote-discount').value = '';
+    calculateQuotation();
+    
+    document.getElementById('modal-quotation').style.display = 'flex';
+}
+
+function closeQuotationModal() {
+    document.getElementById('modal-quotation').style.display = 'none';
+}
+
+function calculateQuotation() {
+    const rate = parseFloat(document.getElementById('quote-rate').value) || 0;
+    const days = parseInt(document.getElementById('quote-days').value) || 1;
+    const discount = parseFloat(document.getElementById('quote-discount').value) || 0;
+
+    const artistTotal = rate * days;
+    const margin = artistTotal * 0.20; // 20% Momento Hike
+    const finalTotal = (artistTotal + margin) - discount;
+
+    document.getElementById('calc-artist').innerText = `₹${artistTotal}`;
+    document.getElementById('calc-margin').innerText = `₹${margin}`;
+    document.getElementById('calc-discount').innerText = `-₹${discount}`;
+    document.getElementById('calc-total').innerText = `₹${Math.max(0, finalTotal)}`;
+}
+
+async function submitQuotation() {
+    const ticketId = document.getElementById('quote-ticket-id').value;
+    const rate = parseFloat(document.getElementById('quote-rate').value);
+    const days = parseInt(document.getElementById('quote-days').value) || 1;
+    const discount = parseFloat(document.getElementById('quote-discount').value) || 0;
+
+    if (!rate || rate <= 0) return alert("Please enter a valid artist rate.");
+
+    const artistTotal = rate * days;
+    const finalTotal = Math.max(0, (artistTotal + (artistTotal * 0.20)) - discount);
+
+    const btn = document.getElementById('btn-send-quote');
+    btn.innerText = "Dispatching...";
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/send-quotation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticketId: ticketId,
+                amount: finalTotal,
+                discount: discount,
+                customerEmail: document.getElementById('quote-cust-email').value,
+                customerName: document.getElementById('quote-cust-name').value,
+                proName: document.getElementById('quote-pro-name').value
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            closeQuotationModal();
+            loadBookings(); 
+        } else {
+            alert("Error sending quotation.");
+        }
+    } catch (e) {
+        alert("Network error.");
+    } finally {
+        btn.innerText = "Send Email";
+    }
+}
