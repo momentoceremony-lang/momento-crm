@@ -40,44 +40,6 @@ async function loginCRM() {
     }
 }
 
-function checkCRMAuth() {
-    const userString = localStorage.getItem('crmUser');
-    if (!userString) {
-        document.getElementById('login-container').style.display = 'flex';
-        document.getElementById('dashboard-container').style.display = 'none';
-        return;
-    }
-
-    const user = JSON.parse(userString);
-
-    // 1. Check if forced password reset is required
-    if (user.must_reset) {
-        document.getElementById('modal-reset-password').style.display = 'block';
-        return;
-    }
-
-    // 2. Hide login, show dashboard
-    document.getElementById('login-container').style.display = 'none';
-    document.getElementById('dashboard-container').style.display = 'flex';
-    loadPendingArtists();
-
-    // 3. Configure Role-Based Access
-    document.getElementById('active-role-badge').innerText = user.role;
-    
-    if (user.role === 'admin') {
-        document.getElementById('menu-admin').style.display = 'block';
-    } else if (user.role === 'developer') {
-        document.getElementById('menu-dev').style.display = 'block';
-    }
-
-    // Init URL Routing
-    if (!window.location.hash) {
-        window.history.replaceState({ tab: 'verification' }, "", "#verification");
-    } else {
-        executeVisualTabSwitch(window.location.hash.replace('#', ''));
-    }
-}
-
 // ==========================================
 // FORCED PASSWORD RESET
 // ==========================================
@@ -391,6 +353,50 @@ async function loadBookings() {
         }
     } catch (e) {
         console.error("Failed to load bookings", e);
+    }
+}
+
+// ==========================================
+// SYSTEM CONTROLS & MAINTENANCE
+// ==========================================
+async function fetchSystemStatus() {
+    try {
+        const res = await fetch(`https://api.momentoo.in/api/system/status`);
+        const data = await res.json();
+        document.getElementById('maintenance-toggle').checked = data.maintenance;
+    } catch (e) {
+        console.error("Failed to fetch system status");
+    }
+}
+
+async function flipMaintenanceSwitch() {
+    const toggle = document.getElementById('maintenance-toggle');
+    const isActivating = toggle.checked;
+
+    const confirmMsg = isActivating 
+        ? "WARNING: This will instantly kick all users off the live website and show the maintenance screen. Proceed?" 
+        : "Turn off Maintenance Mode? The website will instantly become live for the public.";
+
+    if (!confirm(confirmMsg)) {
+        toggle.checked = !isActivating; // Revert the switch if they cancel
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/system/maintenance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: isActivating })
+        });
+        const data = await res.json();
+        
+        if (!data.success) {
+            alert("Error updating system state.");
+            toggle.checked = !isActivating;
+        }
+    } catch (e) {
+        alert("Network error.");
+        toggle.checked = !isActivating;
     }
 }
 
