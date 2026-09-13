@@ -188,63 +188,83 @@ window.addEventListener('popstate', function(event) {
 });
 
 // ==========================================
-// ARTIST VERIFICATION ENGINE
+// ARTIST VERIFICATION ENGINE (V2)
 // ==========================================
 async function loadPendingArtists() {
-    const grid = document.getElementById('pending-artists-grid');
-    if (!grid) return;
-    grid.innerHTML = '<p style="opacity: 0.7;">Fetching pending applications...</p>';
+    const pendingGrid = document.getElementById('pending-artists-grid');
+    const rejectedGrid = document.getElementById('rejected-artists-grid');
+    if (!pendingGrid) return;
+    
+    pendingGrid.innerHTML = '<p style="opacity: 0.7;">Fetching applications...</p>';
+    rejectedGrid.innerHTML = '';
 
     try {
         const res = await fetch(`${API_BASE_URL}/pending-artists`);
         const data = await res.json();
 
         if (data.success) {
-            grid.innerHTML = '';
-            if (data.data.length === 0) {
-                grid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No pending applications right now.</p>';
-                return;
+            // Render Pending
+            pendingGrid.innerHTML = '';
+            if (data.pending.length === 0) {
+                pendingGrid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No pending applications right now.</p>';
+            } else {
+                data.pending.forEach(pro => {
+                    pendingGrid.innerHTML += generateVerificationCard(pro, 'pending');
+                });
             }
 
-            data.data.forEach(pro => {
-                const dp = pro.dp_url || 'https://via.placeholder.com/60?text=No+DP';
-                const specs = pro.specialties ? pro.specialties.join(', ') : 'None';
-                const phone = pro.phone || 'N/A';
-                const email = pro.email || 'N/A';
-                
-                // Count portfolio images to see if they actually set up their account
-                const galleryCount = pro.gallery ? pro.gallery.length : 0;
-
-                grid.innerHTML += `
-                    <div class="crm-card">
-                        <div class="crm-card-header">
-                            <img src="${dp}" class="crm-card-dp" alt="DP">
-                            <div>
-                                <div class="crm-card-title">${pro.name}</div>
-                                <div class="crm-card-subtitle">${pro.pro_type || 'Photographer'}</div>
-                            </div>
-                        </div>
-                        <div class="crm-card-body">
-                            <p><strong>Email:</strong> ${email}</p>
-                            <p><strong>Phone:</strong> ${phone}</p>
-                            <p><strong>Specialties:</strong> ${specs}</p>
-                            <p><strong>Portfolio Items:</strong> ${galleryCount} images</p>
-                        </div>
-                        <div class="crm-card-actions">
-                            <button class="btn-reject" onclick="rejectArtist('${pro.id}')">Reject</button>
-                            <button class="btn-approve" onclick="approveArtist('${pro.id}')">Approve</button>
-                        </div>
-                    </div>
-                `;
-            });
+            // Render Rejected
+            if (data.rejected.length === 0) {
+                rejectedGrid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No rejected applications currently pending fixes.</p>';
+            } else {
+                data.rejected.forEach(pro => {
+                    rejectedGrid.innerHTML += generateVerificationCard(pro, 'rejected');
+                });
+            }
         }
     } catch (e) {
-        grid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
+        pendingGrid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
     }
 }
 
+function generateVerificationCard(pro, status) {
+    const dp = pro.dp_url || 'https://via.placeholder.com/60?text=No+DP';
+    const specs = pro.specialties ? pro.specialties.join(', ') : 'None';
+    const phone = pro.phone || 'N/A';
+    const email = pro.email || 'N/A';
+    const galleryCount = pro.gallery ? pro.gallery.length : 0;
+    
+    let rejectionNote = '';
+    if (status === 'rejected') {
+        rejectionNote = `<div style="background: #fdf0f0; border-left: 3px solid #e74c3c; padding: 10px; margin-top: 10px; font-size: 0.85rem; color: #c0392b;"><strong>Awaiting Fixes:</strong> ${pro.rejection_reason}</div>`;
+    }
+
+    return `
+        <div class="crm-card" style="${status === 'rejected' ? 'border-color: #e74c3c; opacity: 0.9;' : ''}">
+            <div class="crm-card-header">
+                <img src="${dp}" class="crm-card-dp" alt="DP">
+                <div>
+                    <div class="crm-card-title">${pro.name}</div>
+                    <div class="crm-card-subtitle">${pro.pro_type || 'Photographer'}</div>
+                </div>
+            </div>
+            <div class="crm-card-body">
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Phone:</strong> ${phone}</p>
+                <p><strong>Specialties:</strong> ${specs}</p>
+                <p><strong>Portfolio Items:</strong> ${galleryCount} images</p>
+                ${rejectionNote}
+            </div>
+            <div class="crm-card-actions">
+                <button class="btn-reject" onclick="openRejectModal('${pro.id}')">Reject</button>
+                <button class="btn-approve" onclick="approveArtist('${pro.id}')">Approve</button>
+            </div>
+        </div>
+    `;
+}
+
 async function approveArtist(id) {
-    if (!confirm("Are you sure you want to approve this artist? They will instantly appear on the live website.")) return;
+    if (!confirm("Are you sure? This will send a Welcome email and push them live on the platform.")) return;
 
     try {
         const res = await fetch(`${API_BASE_URL}/approve-artist`, {
@@ -255,7 +275,7 @@ async function approveArtist(id) {
         const data = await res.json();
         
         if (data.success) {
-            loadPendingArtists(); // Refresh the list
+            loadPendingArtists(); 
         } else {
             alert("Error approving artist.");
         }
@@ -264,23 +284,43 @@ async function approveArtist(id) {
     }
 }
 
-async function rejectArtist(id) {
-    if (!confirm("Are you sure you want to REJECT and DELETE this application permanently?")) return;
+// Modal Handlers
+function openRejectModal(id) {
+    document.getElementById('reject-artist-id').value = id;
+    document.getElementById('reject-reason-text').value = '';
+    document.getElementById('modal-reject-reason').style.display = 'flex';
+}
+
+function closeRejectModal() {
+    document.getElementById('modal-reject-reason').style.display = 'none';
+}
+
+async function submitRejection() {
+    const id = document.getElementById('reject-artist-id').value;
+    const reason = document.getElementById('reject-reason-text').value.trim();
+    
+    if (!reason) return alert("Please provide a reason for the artist so they know what to fix.");
+
+    const btn = document.querySelector('.btn-reject[onclick="submitRejection()"]');
+    btn.innerText = "Sending Email...";
 
     try {
         const res = await fetch(`${API_BASE_URL}/reject-artist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
+            body: JSON.stringify({ id, reason })
         });
         const data = await res.json();
         
         if (data.success) {
-            loadPendingArtists(); // Refresh the list
+            closeRejectModal();
+            loadPendingArtists(); 
         } else {
             alert("Error rejecting artist.");
         }
     } catch (e) {
         alert("Network error.");
+    } finally {
+        btn.innerText = "Send Email & Reject";
     }
 }
