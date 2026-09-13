@@ -22,24 +22,69 @@ async function loginCRM() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: user, password: pass })
         });
-        const data = await res.json();
+        
+        // Expose the raw text if Railway throws an HTML error page instead of JSON
+        const rawText = await res.text(); 
+        const data = JSON.parse(rawText);
 
         if (data.success) {
             localStorage.setItem('crmToken', data.token);
             localStorage.setItem('crmUser', JSON.stringify(data.user));
-            // Temporarily store the raw password just in case we need to reset it
             sessionStorage.setItem('tempCrmPass', pass); 
             checkCRMAuth();
         } else {
             alert(data.error);
         }
     } catch (e) {
-        console.error(e);
-        alert("Connection failed. Check browser console or Railway logs.");
+        console.error("Login Crash:", e);
+        alert(`Detailed Error: ${e.message}\nCheck Developer Console (F12) for details.`);
     } finally {
         btn.innerText = "Authenticate";
     }
 }
+
+function checkCRMAuth() {
+    const userString = localStorage.getItem('crmUser');
+    if (!userString) {
+        document.getElementById('login-container').style.display = 'flex';
+        document.getElementById('dashboard-container').style.display = 'none';
+        return;
+    }
+
+    const user = JSON.parse(userString);
+
+    // 1. Check if forced password reset is required
+    if (user.must_reset) {
+        document.getElementById('modal-reset-password').style.display = 'block';
+        return;
+    }
+
+    // 2. Hide login, show dashboard
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('dashboard-container').style.display = 'flex';
+    
+    // 3. Load all dashboard modules
+    loadPendingArtists();
+    loadBookings();
+    fetchSystemStatus(); 
+
+    // 4. Configure Role-Based Access
+    document.getElementById('active-role-badge').innerText = user.role;
+    
+    if (user.role === 'admin') {
+        document.getElementById('menu-admin').style.display = 'block';
+    } else if (user.role === 'developer') {
+        document.getElementById('menu-dev').style.display = 'block';
+    }
+
+    // Init URL Routing
+    if (!window.location.hash) {
+        window.history.replaceState({ tab: 'verification' }, "", "#verification");
+    } else {
+        executeVisualTabSwitch(window.location.hash.replace('#', ''));
+    }
+}
+
 
 // ==========================================
 // FORCED PASSWORD RESET
