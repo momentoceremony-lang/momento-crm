@@ -121,8 +121,25 @@
                 <p>Admin controls loading...</p>
             </section>
 
+            <!-- SYSTEM CONTROLS (DEVELOPER ONLY) -->
             <section id="tab-developer" class="crm-tab">
-                <p>Maintenance controls loading...</p>
+                <div style="margin-bottom: 30px;">
+                    <h2 style="font-size: 1.8rem; color: var(--primary-color);">System Controls</h2>
+                    <p style="opacity: 0.8; font-size: 0.9rem;">Master configurations for the Momento platform.</p>
+                </div>
+                
+                <div class="crm-card" style="max-width: 500px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; border-left: 4px solid #e74c3c;">
+                    <div>
+                        <h3 style="color: #e74c3c; margin-bottom: 5px;">Maintenance Mode</h3>
+                        <p style="font-size: 0.85rem; opacity: 0.8;">Instantly redirect all public traffic to maintenance.html.</p>
+                    </div>
+                    
+                    <!-- CSS Toggle Switch -->
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="maintenance-toggle" onchange="flipMaintenanceSwitch()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </section>
         </main>
     </div>
