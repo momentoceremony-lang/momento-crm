@@ -198,41 +198,63 @@ window.addEventListener('popstate', function(event) {
 // ==========================================
 // ARTIST VERIFICATION ENGINE (V2)
 // ==========================================
+let crmArtistData = { pending: [], rejected: [], approved: [] };
+let currentVerificationTab = 'pending';
+
 async function loadPendingArtists() {
-    const pendingGrid = document.getElementById('pending-artists-grid');
-    const rejectedGrid = document.getElementById('rejected-artists-grid');
-    if (!pendingGrid) return;
+    const grid = document.getElementById('verification-dynamic-grid');
+    if (!grid) return;
     
-    pendingGrid.innerHTML = '<p style="opacity: 0.7;">Fetching applications...</p>';
-    rejectedGrid.innerHTML = '';
+    grid.innerHTML = '<p style="opacity: 0.7;">Fetching applications...</p>';
 
     try {
         const res = await fetch(`${API_BASE_URL}/pending-artists`);
         const data = await res.json();
 
         if (data.success) {
-            // Render Pending
-            pendingGrid.innerHTML = '';
-            if (data.pending.length === 0) {
-                pendingGrid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No pending applications right now.</p>';
-            } else {
-                data.pending.forEach(pro => {
-                    pendingGrid.innerHTML += generateVerificationCard(pro, 'pending');
-                });
-            }
-
-            // Render Rejected
-            if (data.rejected.length === 0) {
-                rejectedGrid.innerHTML = '<p style="opacity: 0.7; grid-column: 1/-1;">No rejected applications currently pending fixes.</p>';
-            } else {
-                data.rejected.forEach(pro => {
-                    rejectedGrid.innerHTML += generateVerificationCard(pro, 'rejected');
-                });
-            }
+            crmArtistData.pending = data.pending;
+            crmArtistData.rejected = data.rejected;
+            crmArtistData.approved = data.approved; // NEW
+            
+            renderVerificationGrid(currentVerificationTab);
         }
     } catch (e) {
-        pendingGrid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
+        grid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
     }
+}
+
+function renderVerificationGrid(statusFilter) {
+    currentVerificationTab = statusFilter;
+    const grid = document.getElementById('verification-dynamic-grid');
+    
+    // Update Button Styles
+    ['pending', 'rejected', 'approved'].forEach(tab => {
+        const btn = document.getElementById(`btn-filter-${tab}`);
+        if (btn) {
+            if (tab === statusFilter) {
+                btn.style.background = 'var(--primary-color)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+            } else {
+                btn.style.background = 'transparent';
+                btn.style.color = '#333';
+                btn.style.border = '1px solid #ccc';
+            }
+        }
+    });
+
+    // Render Cards
+    grid.innerHTML = '';
+    const artistsToRender = crmArtistData[statusFilter];
+
+    if (artistsToRender.length === 0) {
+        grid.innerHTML = `<p style="opacity: 0.7; grid-column: 1/-1;">No ${statusFilter} artists found.</p>`;
+        return;
+    }
+
+    artistsToRender.forEach(pro => {
+        grid.innerHTML += generateVerificationCard(pro, statusFilter);
+    });
 }
 
 function generateVerificationCard(pro, status) {
@@ -242,13 +264,31 @@ function generateVerificationCard(pro, status) {
     const email = pro.email || 'N/A';
     const galleryCount = pro.gallery ? pro.gallery.length : 0;
     
+    // NEW: Safely pull bank details
+    const bankAcc = pro.bank_account || '<span style="color:red;">Not Provided</span>';
+    const ifsc = pro.ifsc_code || '<span style="color:red;">Not Provided</span>';
+    
     let rejectionNote = '';
     if (status === 'rejected') {
         rejectionNote = `<div style="background: #fdf0f0; border-left: 3px solid #e74c3c; padding: 10px; margin-top: 10px; font-size: 0.85rem; color: #c0392b;"><strong>Awaiting Fixes:</strong> ${pro.rejection_reason}</div>`;
     }
 
+    // Dynamic Action Buttons
+    let actionButtons = '';
+    if (status === 'pending' || status === 'rejected') {
+        actionButtons = `
+            <button class="btn-reject" onclick="openRejectModal('${pro.id}')">Reject</button>
+            <button class="btn-approve" onclick="approveArtist('${pro.id}')">Approve</button>
+        `;
+    } else if (status === 'approved') {
+        actionButtons = `
+            <div style="width: 100%; text-align: center; color: #27ae60; font-weight: bold; padding: 10px;">✅ Live on Platform</div>
+            <button class="btn-reject" style="width: 100%; margin-top: 5px; background: transparent; color: #e74c3c; border: 1px solid #e74c3c;" onclick="openRejectModal('${pro.id}')">Revoke & Request Fixes</button>
+        `;
+    }
+
     return `
-        <div class="crm-card" style="${status === 'rejected' ? 'border-color: #e74c3c; opacity: 0.9;' : ''}">
+        <div class="crm-card" style="${status === 'rejected' ? 'border-color: #e74c3c;' : (status === 'approved' ? 'border-color: #27ae60;' : '')}">
             <div class="crm-card-header">
                 <img src="${dp}" class="crm-card-dp" alt="DP">
                 <div>
@@ -261,11 +301,16 @@ function generateVerificationCard(pro, status) {
                 <p><strong>Phone:</strong> ${phone}</p>
                 <p><strong>Specialties:</strong> ${specs}</p>
                 <p><strong>Portfolio Items:</strong> ${galleryCount} images</p>
+                
+                <!-- NEW: Bank Details Section -->
+                <hr style="border: 0; border-top: 1px dashed #ddd; margin: 12px 0;">
+                <p><strong>Bank A/C:</strong> <span style="font-family: monospace; letter-spacing: 1px;">${bankAcc}</span></p>
+                <p><strong>IFSC:</strong> <span style="font-family: monospace; letter-spacing: 1px;">${ifsc}</span></p>
+                
                 ${rejectionNote}
             </div>
-            <div class="crm-card-actions">
-                <button class="btn-reject" onclick="openRejectModal('${pro.id}')">Reject</button>
-                <button class="btn-approve" onclick="approveArtist('${pro.id}')">Approve</button>
+            <div class="crm-card-actions" style="${status === 'approved' ? 'flex-direction: column;' : ''}">
+                ${actionButtons}
             </div>
         </div>
     `;
