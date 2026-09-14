@@ -412,20 +412,23 @@ async function loadBookings() {
             data.data.forEach(booking => {
                 const dates = `${new Date(booking.start_date).toLocaleDateString()} to ${new Date(booking.end_date).toLocaleDateString()}`;
                 
+                // ULTIMATE FALLBACK: If status is null/blank, force it to 'pending' so it's never invisible
+                const safeStatus = booking.status || 'pending';
+                
                 let actionBtn = '';
-                if (booking.status === 'pending') {
+                if (safeStatus === 'pending') {
                     actionBtn = `<button class="btn-action-small btn-quote" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
                     pCount++;
-                } else if (booking.status === 'quotation_sent') {
+                } else if (safeStatus === 'quotation_sent') {
                     actionBtn = `
                         <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount}</span></div>
                         <button class="btn-action-small" style="background:#27ae60; color:white;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid</button>
                     `;
                     qCount++;
-                } else if (booking.status === 'confirmed') {
+                } else if (safeStatus === 'confirmed') {
                     actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
                     cCount++;
-                } else if (booking.status === 'completed') {
+                } else if (safeStatus === 'completed') {
                     actionBtn = `
                         <div style="text-align:center; font-weight:bold; color:#8e44ad;">Delivered via ${booking.courier_partner}</div>
                         <div style="text-align:center; font-size:0.8rem; opacity:0.8; font-family: monospace;">Tracker: ${booking.tracking_id}</div>
@@ -433,7 +436,6 @@ async function loadBookings() {
                     compCount++;
                 }
 
-                // Generate the Card HTML once
                 const cardHTML = `
                     <div class="booking-card">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -453,19 +455,17 @@ async function loadBookings() {
                     </div>
                 `;
 
-                // Route to the correct Kanban column
-                if (booking.status === 'pending') {
+                if (safeStatus === 'pending') {
                     colPending.innerHTML += cardHTML;
-                } else if (booking.status === 'quotation_sent') {
+                } else if (safeStatus === 'quotation_sent') {
                     colQuotation.innerHTML += cardHTML;
-                } else if (booking.status === 'confirmed') {
+                } else if (safeStatus === 'confirmed') {
                     colConfirmed.innerHTML += cardHTML;
-                } else if (booking.status === 'completed' && colCompleted) {
+                } else if (safeStatus === 'completed' && colCompleted) {
                     colCompleted.innerHTML += cardHTML;
                 }
             });
 
-            // Update badge totals
             document.getElementById('count-pending').innerText = pCount;
             document.getElementById('count-quotation_sent').innerText = qCount;
             document.getElementById('count-confirmed').innerText = cCount;
