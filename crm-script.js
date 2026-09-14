@@ -408,12 +408,29 @@ async function loadBookings() {
                     actionBtn = `<button class="btn-action-small btn-quote" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
                     pCount++;
                 } else if (booking.status === 'quotation_sent') {
-                    actionBtn = `<div style="text-align:center; font-weight:bold; color:var(--accent-color);">₹${booking.quotation_amount} Quoted</div>`;
+                    actionBtn = `
+                        <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount}</span></div>
+                        <button class="btn-action-small" style="background:#27ae60; color:white;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid</button>
+                    `;
                     qCount++;
-                } else {
-                    actionBtn = `<div style="text-align:center; font-weight:bold; color:#27ae60;">Confirmed</div>`;
+                } else if (booking.status === 'confirmed') {
+                    actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
                     cCount++;
+                } else if (booking.status === 'completed') {
+                    actionBtn = `
+                        <div style="text-align:center; font-weight:bold; color:#8e44ad;">Delivered via ${booking.courier_partner}</div>
+                        <div style="text-align:center; font-size:0.8rem; opacity:0.8; font-family: monospace;">Tracker: ${booking.tracking_id}</div>
+                    `;
+                    compCount++;
                 }
+
+                // Add to correct column
+                const cardHTML = `... (Keep your existing card HTML here) ...`;
+
+                if (booking.status === 'pending') colPending.innerHTML += cardHTML;
+                else if (booking.status === 'quotation_sent') colQuotation.innerHTML += cardHTML;
+                else if (booking.status === 'confirmed') colConfirmed.innerHTML += cardHTML;
+                else if (booking.status === 'completed') document.getElementById('col-completed').innerHTML += cardHTML;
 
                 const cardHTML = `
                     <div class="booking-card">
@@ -527,13 +544,17 @@ function calculateQuotation() {
     document.getElementById('calc-total').innerText = `₹${Math.max(0, finalTotal)}`;
 }
 
+// Overwrite the existing submitQuotation to include Advance and Artist Override
 async function submitQuotation() {
     const ticketId = document.getElementById('quote-ticket-id').value;
     const rate = parseFloat(document.getElementById('quote-rate').value);
     const days = parseInt(document.getElementById('quote-days').value) || 1;
     const discount = parseFloat(document.getElementById('quote-discount').value) || 0;
+    const advance = parseFloat(document.getElementById('quote-advance').value) || 0;
+    const finalProName = document.getElementById('quote-pro-name').value.trim();
 
     if (!rate || rate <= 0) return alert("Please enter a valid artist rate.");
+    if (!finalProName) return alert("Assigned Artist name cannot be blank.");
 
     const artistTotal = rate * days;
     const finalTotal = Math.max(0, (artistTotal + (artistTotal * 0.20)) - discount);
@@ -546,25 +567,73 @@ async function submitQuotation() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                ticketId: ticketId,
-                amount: finalTotal,
-                discount: discount,
+                ticketId: ticketId, 
+                amount: finalTotal, 
+                discount: discount, 
+                advanceAmount: advance, // NEW: Sends the advance amount
                 customerEmail: document.getElementById('quote-cust-email').value,
                 customerName: document.getElementById('quote-cust-name').value,
-                proName: document.getElementById('quote-pro-name').value
+                proName: finalProName   // NEW: Sends the potentially changed artist name
             })
         });
         const data = await res.json();
         
-        if (data.success) {
-            closeQuotationModal();
+        if (data.success) { 
+            closeQuotationModal(); 
             loadBookings(); 
         } else {
             alert("Error sending quotation.");
         }
-    } catch (e) {
-        alert("Network error.");
-    } finally {
-        btn.innerText = "Send Email";
+    } catch (e) { 
+        alert("Network error."); 
+    } finally { 
+        btn.innerText = "Send Email"; 
     }
+}
+
+async function confirmBookingPayment(ticketId) {
+    if(!confirm("Has the customer paid the advance? This will lock in the dates and confirm the booking.")) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/confirm-booking`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ticketId })
+        });
+        const data = await res.json();
+        if(data.success) loadBookings();
+    } catch(e) { alert("Error confirming payment."); }
+}
+
+function openDispatchModal(ticketId, custName, custEmail) {
+    document.getElementById('dispatch-ticket-display').innerText = `Ticket: ${ticketId} | Client: ${custName}`;
+    document.getElementById('dispatch-ticket-id').value = ticketId;
+    document.getElementById('dispatch-cust-name').value = custName;
+    document.getElementById('dispatch-cust-email').value = custEmail;
+    document.getElementById('dispatch-courier').value = '';
+    document.getElementById('dispatch-tracking').value = '';
+    document.getElementById('modal-dispatch').style.display = 'flex';
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+async function submitDispatch() {
+    const ticketId = document.getElementById('dispatch-ticket-id').value;
+    const courier = document.getElementById('dispatch-courier').value;
+    const trackingId = document.getElementById('dispatch-tracking').value;
+    const email = document.getElementById('dispatch-cust-email').value;
+    const name = document.getElementById('dispatch-cust-name').value;
+
+    if(!courier || !trackingId) return alert("Please provide Courier Name and Tracking ID.");
+
+    const btn = document.getElementById('btn-send-dispatch');
+    btn.innerText = "Dispatching...";
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/complete-booking`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId, trackingId, courier, customerEmail: email, customerName: name })
+        });
+        const data = await res.json();
+        if (data.success) { document.getElementById('modal-dispatch').style.display = 'none'; loadBookings(); } 
+        else alert("Error: " + data.error);
+    } catch (e) { alert("Network error."); } 
+    finally { btn.innerText = "Complete Job"; }
 }
