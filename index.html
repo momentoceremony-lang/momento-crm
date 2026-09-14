@@ -62,24 +62,23 @@
             
             <!-- VERIFICATION TAB -->
             <section id="tab-verification" class="crm-tab active-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div>
-                        <h2 style="font-size: 1.8rem; color: var(--primary-color);">Pending Approvals</h2>
-                        <p style="opacity: 0.8; font-size: 0.9rem;">Review and approve new professional accounts.</p>
+                        <h2 style="font-size: 1.8rem; color: var(--primary-color);">Artist Management</h2>
+                        <p style="opacity: 0.8; font-size: 0.9rem;">Review applications and manage live partners.</p>
                     </div>
                     <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadPendingArtists()">↻ Refresh</button>
                 </div>
                 
-                <div id="pending-artists-grid" class="crm-card-grid"></div>
-
-                <!-- NEW: REJECTED / ACTION REQUIRED SECTION -->
-                <div style="margin-top: 50px;">
-                    <div style="margin-bottom: 20px;">
-                        <h2 style="font-size: 1.5rem; color: #e74c3c;">Action Required (Rejected)</h2>
-                        <p style="opacity: 0.8; font-size: 0.9rem;">Artists waiting to fix their profiles based on your feedback.</p>
-                    </div>
-                    <div id="rejected-artists-grid" class="crm-card-grid"></div>
+                <!-- NEW: Filter Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #eaddd7; padding-bottom: 15px;">
+                    <button id="btn-filter-pending" class="btn-primary" style="background: var(--primary-color); border-radius: 20px; padding: 8px 15px;" onclick="renderVerificationGrid('pending')">Pending Approvals</button>
+                    <button id="btn-filter-rejected" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderVerificationGrid('rejected')">Action Required</button>
+                    <button id="btn-filter-approved" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderVerificationGrid('approved')">Live & Verified</button>
                 </div>
+
+                <!-- Single Dynamic Grid -->
+                <div id="verification-dynamic-grid" class="crm-card-grid"></div>
             </section>
             
             <!-- BOOKINGS PIPELINE -->
