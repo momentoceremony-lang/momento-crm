@@ -212,9 +212,10 @@ async function loadPendingArtists() {
         const data = await res.json();
 
         if (data.success) {
-            crmArtistData.pending = data.pending;
-            crmArtistData.rejected = data.rejected;
-            crmArtistData.approved = data.approved; // NEW
+            // FIXED: Added "|| []" as a fallback so it never becomes 'undefined' and crashes
+            crmArtistData.pending = data.pending || [];
+            crmArtistData.rejected = data.rejected || [];
+            crmArtistData.approved = data.approved || []; 
             
             renderVerificationGrid(currentVerificationTab);
         }
