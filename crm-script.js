@@ -386,19 +386,28 @@ async function loadBookings() {
     const colPending = document.getElementById('col-pending');
     const colQuotation = document.getElementById('col-quotation_sent');
     const colConfirmed = document.getElementById('col-confirmed');
+    const colCompleted = document.getElementById('col-completed'); 
+    
     if (!colPending) return;
 
-    colPending.innerHTML = ''; colQuotation.innerHTML = ''; colConfirmed.innerHTML = '';
+    // Reset columns
+    colPending.innerHTML = ''; 
+    colQuotation.innerHTML = ''; 
+    colConfirmed.innerHTML = ''; 
+    if (colCompleted) colCompleted.innerHTML = '';
+
+    // Reset counters
     document.getElementById('count-pending').innerText = '0';
     document.getElementById('count-quotation_sent').innerText = '0';
     document.getElementById('count-confirmed').innerText = '0';
+    if (document.getElementById('count-completed')) document.getElementById('count-completed').innerText = '0';
 
     try {
         const res = await fetch(`${API_BASE_URL}/bookings`);
         const data = await res.json();
 
         if (data.success) {
-            let pCount = 0, qCount = 0, cCount = 0;
+            let pCount = 0, qCount = 0, cCount = 0, compCount = 0;
 
             data.data.forEach(booking => {
                 const dates = `${new Date(booking.start_date).toLocaleDateString()} to ${new Date(booking.end_date).toLocaleDateString()}`;
@@ -424,14 +433,7 @@ async function loadBookings() {
                     compCount++;
                 }
 
-                // Add to correct column
-                const cardHTML = `... (Keep your existing card HTML here) ...`;
-
-                if (booking.status === 'pending') colPending.innerHTML += cardHTML;
-                else if (booking.status === 'quotation_sent') colQuotation.innerHTML += cardHTML;
-                else if (booking.status === 'confirmed') colConfirmed.innerHTML += cardHTML;
-                else if (booking.status === 'completed') document.getElementById('col-completed').innerHTML += cardHTML;
-
+                // Generate the Card HTML once
                 const cardHTML = `
                     <div class="booking-card">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -451,14 +453,23 @@ async function loadBookings() {
                     </div>
                 `;
 
-                if (booking.status === 'pending') colPending.innerHTML += cardHTML;
-                else if (booking.status === 'quotation_sent') colQuotation.innerHTML += cardHTML;
-                else colConfirmed.innerHTML += cardHTML;
+                // Route to the correct Kanban column
+                if (booking.status === 'pending') {
+                    colPending.innerHTML += cardHTML;
+                } else if (booking.status === 'quotation_sent') {
+                    colQuotation.innerHTML += cardHTML;
+                } else if (booking.status === 'confirmed') {
+                    colConfirmed.innerHTML += cardHTML;
+                } else if (booking.status === 'completed' && colCompleted) {
+                    colCompleted.innerHTML += cardHTML;
+                }
             });
 
+            // Update badge totals
             document.getElementById('count-pending').innerText = pCount;
             document.getElementById('count-quotation_sent').innerText = qCount;
             document.getElementById('count-confirmed').innerText = cCount;
+            if (document.getElementById('count-completed')) document.getElementById('count-completed').innerText = compCount;
         }
     } catch (e) {
         console.error("Failed to load bookings", e);
