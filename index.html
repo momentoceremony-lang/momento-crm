@@ -109,6 +109,12 @@
                         <div class="kanban-header" style="border-top-color: #27ae60;">Confirmed <span id="count-confirmed" class="kanban-badge" style="background: #27ae60;">0</span></div>
                         <div id="col-confirmed" class="kanban-body"></div>
                     </div>
+
+                    <!-- Column 4: Completed -->
+                    <div class="kanban-column">
+                        <div class="kanban-header" style="border-top-color: #8e44ad;">Completed <span id="count-completed" class="kanban-badge" style="background: #8e44ad;">0</span></div>
+                        <div id="col-completed" class="kanban-body"></div>
+                    </div>
                 </div>
             </section>
 
@@ -194,15 +200,53 @@
                 </div>
             </div>
 
+            <!-- Artist Override (Admin can change this if original is unavailable) -->
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 0.8rem; opacity: 0.8;">Assigned Artist</label>
+                <input type="text" id="quote-pro-name" class="crm-input" style="margin-bottom: 0; font-weight: bold;">
+                <p style="font-size: 0.75rem; color: #e74c3c; margin-top: 5px; margin-bottom: 0;">*You can change this name to assign a different artist.</p>
+            </div>
+
+            <!-- Advance Payment -->
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 0.8rem; opacity: 0.8;">Advance Payment Required (₹)</label>
+                <input type="number" id="quote-advance" class="crm-input" placeholder="e.g. 5000">
+            </div>
+
             <!-- Hidden data fields -->
             <input type="hidden" id="quote-ticket-id">
             <input type="hidden" id="quote-cust-email">
             <input type="hidden" id="quote-cust-name">
-            <input type="hidden" id="quote-pro-name">
 
             <div style="display: flex; gap: 10px;">
                 <button class="btn-primary" style="background: #ccc; color: #333;" onclick="closeQuotationModal()">Cancel</button>
                 <button class="btn-primary" onclick="submitQuotation()" id="btn-send-quote">Send Email</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPATCH DELIVERABLES MODAL -->
+    <div id="modal-dispatch" class="modal">
+        <div class="modal-content auth-box" style="max-width: 450px; text-align: left;">
+            <h2 style="color: #8e44ad; margin-bottom: 5px;">Dispatch Deliverables</h2>
+            <p id="dispatch-ticket-display" style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 20px; font-weight: bold;"></p>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 0.8rem; opacity: 0.8;">Courier Partner (e.g., DTDC, BlueDart, Hand Delivery)</label>
+                <input type="text" id="dispatch-courier" class="crm-input" placeholder="Enter delivery method">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="font-size: 0.8rem; opacity: 0.8;">Tracking ID</label>
+                <input type="text" id="dispatch-tracking" class="crm-input" placeholder="Enter Tracking Number">
+            </div>
+
+            <input type="hidden" id="dispatch-ticket-id">
+            <input type="hidden" id="dispatch-cust-email">
+            <input type="hidden" id="dispatch-cust-name">
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" style="background: #ccc; color: #333;" onclick="closeModal('modal-dispatch')">Cancel</button>
+                <button class="btn-primary" style="background: #8e44ad;" onclick="submitDispatch()" id="btn-send-dispatch">Complete Job</button>
             </div>
         </div>
     </div>
