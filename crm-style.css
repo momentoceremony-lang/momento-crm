@@ -51,8 +51,8 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; }
 ========================================== */
 @media (min-width: 851px) {
     .desktop-hide { display: none !important; }
+    .mobile-nav-toggle { display: none !important; }
 }
-
 @media (max-width: 850px) {
     #dashboard-container { flex-direction: column; }
     .crm-main { margin-left: 0; padding: 20px; }
