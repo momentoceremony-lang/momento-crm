@@ -103,12 +103,25 @@
                     <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadBookings()">↻ Refresh</button>
                 </div>
 
-                <!-- NEW: Scrollable Filter Buttons -->
+                <!-- NEW: Scrollable Filter Buttons WITH Notification Badges -->
                 <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #eaddd7; padding-bottom: 15px; overflow-x: auto; white-space: nowrap;">
-                    <button id="btn-book-pending" class="btn-primary" style="background: var(--primary-color); border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('pending')">New Requests</button>
-                    <button id="btn-book-quotation_sent" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('quotation_sent')">Bill Pending</button>
-                    <button id="btn-book-confirmed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('confirmed')">Confirmed</button>
-                    <button id="btn-book-completed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('completed')">Completed</button>
+                    
+                    <button id="btn-book-pending" class="btn-primary" style="background: var(--primary-color); border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 8px;" onclick="renderBookingGrid('pending')">
+                        New Requests <span id="count-pending" style="background: rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+                    </button>
+                    
+                    <button id="btn-book-quotation_sent" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 8px;" onclick="renderBookingGrid('quotation_sent')">
+                        Bill Pending <span id="count-quotation_sent" style="background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+                    </button>
+                    
+                    <button id="btn-book-confirmed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 8px;" onclick="renderBookingGrid('confirmed')">
+                        Confirmed <span id="count-confirmed" style="background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+                    </button>
+                    
+                    <button id="btn-book-completed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px; display: flex; align-items: center; gap: 8px;" onclick="renderBookingGrid('completed')">
+                        Completed <span id="count-completed" style="background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">0</span>
+                    </button>
+                    
                 </div>
 
                 <!-- Single Dynamic Grid (Replaces the columns) -->
