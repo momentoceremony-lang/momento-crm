@@ -46,13 +46,118 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; }
 
 .mobile-nav-toggle { display: none; }
 
+/* ==========================================
+   NATIVE APP SIDE-DRAWER OVERRIDE
+========================================== */
+@media (min-width: 851px) {
+    .desktop-hide { display: none !important; }
+}
+
 @media (max-width: 850px) {
     #dashboard-container { flex-direction: column; }
     .crm-main { margin-left: 0; padding: 20px; }
-    .crm-sidebar { display: none; width: 220px; position: absolute; top: 70px; right: 20px; height: auto; border-radius: 12px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-    .crm-sidebar.show-menu { display: flex; }
+    .sidebar-brand { display: none !important; } 
+
+    /* The Sliding Drawer */
+    .crm-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        right: -120% !important; /* Hidden off-screen */
+        width: 280px !important;
+        height: 100vh !important;
+        background: #ffffff !important;
+        box-shadow: -5px 0 25px rgba(0,0,0,0.3) !important;
+        transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+        z-index: 10000 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 0 !important;
+        border-radius: 25px 0 0 25px !important;
+    }
+    .crm-sidebar.show-menu {
+        right: 0 !important; /* Slide in */
+    }
+
+    /* Clean Menu Items */
+    .sidebar-menu {
+        padding: 10px 20px !important;
+        margin-top: 0 !important;
+        flex: 1;
+        overflow-y: auto;
+    }
+    .sidebar-menu li {
+        color: #3C3633 !important;
+        padding: 15px 10px !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+        font-size: 1.05rem !important;
+        font-weight: bold;
+        border-left: none !important;
+    }
+    .sidebar-menu li.active {
+        background: rgba(200, 169, 106, 0.1) !important;
+        border-radius: 12px !important;
+        color: var(--primary-color) !important;
+    }
+
+    /* Profile Header inside Drawer */
+    .drawer-profile-header {
+        padding: 30px 20px 20px 20px;
+        background: #fcf9f6;
+        border-radius: 25px 0 0 0;
+        border-bottom: 1px solid rgba(200, 169, 106, 0.2);
+        margin-bottom: 10px;
+        text-align: center;
+        position: relative;
+    }
+    .drawer-close-btn {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 2.2rem;
+        color: #3C3633;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .drawer-profile-header .avatar {
+        width: 65px;
+        height: 65px;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        margin: 0 auto 12px auto;
+        font-family: 'Playfair Display', serif;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .drawer-profile-header h3 {
+        color: var(--primary-color);
+        margin: 0 0 5px 0;
+        font-size: 1.3rem;
+        font-family: 'Playfair Display', serif;
+    }
+    
     .mobile-nav-toggle { display: block; font-size: 2rem; cursor: pointer; color: var(--primary-color); }
-    .sidebar-brand { display: none; }
+}
+
+/* Dark Overlay */
+.mobile-drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease;
+}
+.mobile-drawer-overlay.show {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* ==========================================
