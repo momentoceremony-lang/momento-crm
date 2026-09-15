@@ -455,11 +455,11 @@ function renderBookingGrid(statusFilter) {
     grid.innerHTML = '';
     const bookingsToRender = crmBookingData[statusFilter] || [];
 
-    // Update the numbers in the tabs dynamically
-    document.getElementById('count-pending').innerText = crmBookingData.pending.length;
-    document.getElementById('count-quotation_sent').innerText = crmBookingData.quotation_sent.length;
-    document.getElementById('count-confirmed').innerText = crmBookingData.confirmed.length;
-    document.getElementById('count-completed').innerText = crmBookingData.completed.length;
+    // Update the numbers in the tabs dynamically (SAFELY)
+    if (document.getElementById('count-pending')) document.getElementById('count-pending').innerText = crmBookingData.pending.length;
+    if (document.getElementById('count-quotation_sent')) document.getElementById('count-quotation_sent').innerText = crmBookingData.quotation_sent.length;
+    if (document.getElementById('count-confirmed')) document.getElementById('count-confirmed').innerText = crmBookingData.confirmed.length;
+    if (document.getElementById('count-completed')) document.getElementById('count-completed').innerText = crmBookingData.completed.length;
 
     if (bookingsToRender.length === 0) {
         grid.innerHTML = `<p style="opacity: 0.7; grid-column: 1/-1; padding: 15px;">No ${statusFilter.replace('_', ' ')} bookings found.</p>`;
