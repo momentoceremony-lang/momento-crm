@@ -155,7 +155,14 @@ function switchTab(tabName) {
 
 function executeVisualTabSwitch(tabName) {
     const sidebar = document.querySelector('.crm-sidebar');
-    if (sidebar.classList.contains('show-menu')) sidebar.classList.remove('show-menu');
+    const overlay = document.getElementById('mobile-drawer-overlay');
+    
+    // FIXED: Properly close the sidebar, hide the dark overlay, and unlock scrolling
+    if (sidebar && sidebar.classList.contains('show-menu')) {
+        sidebar.classList.remove('show-menu');
+        if (overlay) overlay.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
     
     document.querySelectorAll('.crm-tab').forEach(tab => tab.classList.remove('active-tab'));
     document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
