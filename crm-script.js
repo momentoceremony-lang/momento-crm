@@ -163,22 +163,37 @@ function toggleSidebar() {
 }
 
 // ==========================================
-// NATIVE APP BACK BUTTON INTERCEPTOR
+// GLOBAL LOADER LOGIC
+// ==========================================
+function showLoader() {
+    const loader = document.getElementById('crm-loader');
+    if (loader) { loader.style.display = 'flex'; loader.style.opacity = '1'; }
+}
+
+function hideLoader() {
+    const loader = document.getElementById('crm-loader');
+    if (loader) { loader.style.opacity = '0'; setTimeout(() => loader.style.display = 'none', 500); }
+}
+
+// ==========================================
+// STRICT APP BACK BUTTON INTERCEPTOR
 // ==========================================
 window.addEventListener('popstate', function(event) {
-    const hash = window.location.hash.replace('#', '');
+    const currentTab = document.querySelector('.active-tab');
+    if (!currentTab) return;
     
-    if (!hash || hash === 'verification') {
+    const currentTabId = currentTab.id.replace('tab-', '');
+    
+    // If they are on the Main Home Screen (Verification)
+    if (currentTabId === 'verification') {
         if (!backPressedOnce) {
             backPressedOnce = true;
-            window.history.pushState({ tab: 'verification' }, "", "#verification");
-            executeVisualTabSwitch('verification');
+            window.history.pushState({ tab: 'verification' }, "", "#verification"); 
             
             const toast = document.createElement('div');
             toast.innerText = "Press back again to exit CRM";
             toast.style.cssText = "position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 12px 24px; border-radius: 25px; z-index: 9999; font-size: 0.95rem; opacity: 0; transition: 0.3s ease;";
             document.body.appendChild(toast);
-            
             requestAnimationFrame(() => toast.style.opacity = '1');
             
             setTimeout(() => {
@@ -187,11 +202,12 @@ window.addEventListener('popstate', function(event) {
                 setTimeout(() => { if (document.body.contains(toast)) toast.remove(); }, 300);
             }, 2000);
         } else {
-            // Exit functionality (closes tab or goes back to browser depending on environment)
-            window.location.href = "about:blank"; 
+            window.location.href = "about:blank"; // Exits App
         }
     } else {
-        executeVisualTabSwitch(hash);
+        // If they hit back from ANY OTHER TAB, force them to the home dashboard
+        window.history.pushState({ tab: 'verification' }, "", "#verification");
+        executeVisualTabSwitch('verification');
     }
 });
 
@@ -202,6 +218,7 @@ let crmArtistData = { pending: [], rejected: [], approved: [] };
 let currentVerificationTab = 'pending';
 
 async function loadPendingArtists() {
+    showLoader();
     const grid = document.getElementById('verification-dynamic-grid');
     if (!grid) return;
     
@@ -221,6 +238,8 @@ async function loadPendingArtists() {
         }
     } catch (e) {
         grid.innerHTML = '<p style="color: red;">Failed to load applications. Check server connection.</p>';
+    } finally {
+        hideLoader();
     }
 }
 
@@ -379,126 +398,119 @@ async function submitRejection() {
     }
 }
 
+/// ==========================================
+// BOOKING PIPELINE ENGINE
 // ==========================================
-// BOOKING PIPELINE & QUOTATIONS
-// ==========================================
+let crmBookingData = { pending: [], quotation_sent: [], confirmed: [], completed: [] };
+let currentBookingTab = 'pending';
+
 async function loadBookings() {
-    const colPending = document.getElementById('col-pending');
-    const colQuotation = document.getElementById('col-quotation_sent');
-    const colConfirmed = document.getElementById('col-confirmed');
-    const colCompleted = document.getElementById('col-completed'); 
-    
-    if (!colPending) return;
-
-    // Reset columns
-    colPending.innerHTML = ''; 
-    colQuotation.innerHTML = ''; 
-    colConfirmed.innerHTML = ''; 
-    if (colCompleted) colCompleted.innerHTML = '';
-
-    // Reset counters
-    document.getElementById('count-pending').innerText = '0';
-    document.getElementById('count-quotation_sent').innerText = '0';
-    document.getElementById('count-confirmed').innerText = '0';
-    if (document.getElementById('count-completed')) document.getElementById('count-completed').innerText = '0';
-
+    showLoader();
     try {
         const res = await fetch(`${API_BASE_URL}/bookings`);
         const data = await res.json();
+        
+        // Reset local memory
+        crmBookingData = { pending: [], quotation_sent: [], confirmed: [], completed: [] }; 
 
-        if (!data.success) {
-            colPending.innerHTML = `<p style="color:red; padding: 15px;">Backend Error: ${data.error}</p>`;
-            return;
-        }
-
-        let pCount = 0, qCount = 0, cCount = 0, compCount = 0;
-
-        if (data.data && data.data.length > 0) {
+        if (data.success && data.data && data.data.length > 0) {
             data.data.forEach(booking => {
-                try {
-                    // Safe Date Formatting
-                    const startDate = booking.start_date ? new Date(booking.start_date).toLocaleDateString() : 'TBD';
-                    const endDate = booking.end_date ? new Date(booking.end_date).toLocaleDateString() : 'TBD';
-                    const dates = `${startDate} to ${endDate}`;
-                    
-                    // FORCE A STATUS (Prevents invisibility bugs)
-                    let rawStatus = booking.status ? booking.status.toLowerCase().trim() : 'pending';
-                    
-                    // Setup specific UI logic based on status
-                    let actionBtn = '';
-                    if (rawStatus === 'quotation_sent') {
-                        actionBtn = `
-                            <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount || 0} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount || 0}</span></div>
-                            <button class="btn-action-small" style="background:#27ae60; color:white;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid</button>
-                        `;
-                    } else if (rawStatus === 'confirmed') {
-                        actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
-                    } else if (rawStatus === 'completed') {
-                        actionBtn = `
-                            <div style="text-align:center; font-weight:bold; color:#8e44ad;">Delivered via ${booking.courier_partner || 'N/A'}</div>
-                            <div style="text-align:center; font-size:0.8rem; opacity:0.8; font-family: monospace;">Tracker: ${booking.tracking_id || 'N/A'}</div>
-                        `;
-                    } else {
-                        // Fallback logic guarantees any weird/null status becomes 'pending'
-                        rawStatus = 'pending';
-                        actionBtn = `<button class="btn-action-small btn-quote" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
-                    }
-
-                    // Generate the Card HTML
-                    const cardHTML = `
-                        <div class="booking-card">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <h4>${booking.customer_name || 'Customer'}</h4>
-                                <span class="ticket-id">${booking.ticket_id}</span>
-                            </div>
-                            <div class="booking-card-detail">
-                                <strong>Artist:</strong> ${booking.pro_name || 'N/A'} (${booking.artist_type || 'N/A'})<br>
-                                <strong>Dates:</strong> ${dates}<br>
-                                <strong>Category:</strong> ${booking.category || 'N/A'}<br>
-                            </div>
-                            <div class="booking-card-actions">
-                                <a href="tel:${booking.customer_phone || ''}" class="btn-action-small btn-contact">📞 Call</a>
-                                <a href="mailto:${booking.customer_email || ''}" class="btn-action-small btn-contact">✉️ Email</a>
-                            </div>
-                            <div style="margin-top: 10px;">${actionBtn}</div>
-                        </div>
-                    `;
-
-                    // Route to the correct Kanban column
-                    if (rawStatus === 'quotation_sent') {
-                        colQuotation.innerHTML += cardHTML;
-                        qCount++;
-                    } else if (rawStatus === 'confirmed') {
-                        colConfirmed.innerHTML += cardHTML;
-                        cCount++;
-                    } else if (rawStatus === 'completed' && colCompleted) {
-                        colCompleted.innerHTML += cardHTML;
-                        compCount++;
-                    } else {
-                        // The ultimate fail-safe: drops it into the first column
-                        colPending.innerHTML += cardHTML;
-                        pCount++;
-                    }
-                } catch (rowError) {
-                    console.error("Error rendering booking row:", rowError);
+                let rawStatus = booking.status ? booking.status.toLowerCase().trim() : 'pending';
+                if (!['pending', 'quotation_sent', 'confirmed', 'completed'].includes(rawStatus)) {
+                    rawStatus = 'pending';
                 }
+                crmBookingData[rawStatus].push(booking);
             });
-        } else {
-            colPending.innerHTML = `<p style="opacity: 0.7; padding: 15px;">No active bookings right now.</p>`;
         }
-
-        // Update badge totals safely
-        document.getElementById('count-pending').innerText = pCount;
-        document.getElementById('count-quotation_sent').innerText = qCount;
-        document.getElementById('count-confirmed').innerText = cCount;
-        if (document.getElementById('count-completed')) {
-            document.getElementById('count-completed').innerText = compCount;
-        }
-
+        
+        renderBookingGrid(currentBookingTab);
     } catch (e) {
-        console.error("Failed to load bookings", e);
-        colPending.innerHTML = `<p style="color:red; padding: 15px;">JS Crash: ${e.message}</p>`;
+        document.getElementById('bookings-dynamic-grid').innerHTML = `<p style="color:red; padding:15px;">JS Crash: ${e.message}</p>`;
+    } finally {
+        hideLoader();
     }
+}
+
+function renderBookingGrid(statusFilter) {
+    currentBookingTab = statusFilter;
+    const grid = document.getElementById('bookings-dynamic-grid');
+    if (!grid) return;
+    
+    // Update Filter Button Styles
+    ['pending', 'quotation_sent', 'confirmed', 'completed'].forEach(tab => {
+        const btn = document.getElementById(`btn-book-${tab}`);
+        if (btn) {
+            if (tab === statusFilter) {
+                btn.style.background = 'var(--primary-color)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+            } else {
+                btn.style.background = 'transparent';
+                btn.style.color = '#333';
+                btn.style.border = '1px solid #ccc';
+            }
+        }
+    });
+
+    grid.innerHTML = '';
+    const bookingsToRender = crmBookingData[statusFilter] || [];
+
+    // Update the numbers in the tabs dynamically
+    document.getElementById('count-pending').innerText = crmBookingData.pending.length;
+    document.getElementById('count-quotation_sent').innerText = crmBookingData.quotation_sent.length;
+    document.getElementById('count-confirmed').innerText = crmBookingData.confirmed.length;
+    document.getElementById('count-completed').innerText = crmBookingData.completed.length;
+
+    if (bookingsToRender.length === 0) {
+        grid.innerHTML = `<p style="opacity: 0.7; grid-column: 1/-1; padding: 15px;">No ${statusFilter.replace('_', ' ')} bookings found.</p>`;
+        return;
+    }
+
+    bookingsToRender.forEach(booking => {
+        const startDate = booking.start_date ? new Date(booking.start_date).toLocaleDateString() : 'TBD';
+        const endDate = booking.end_date ? new Date(booking.end_date).toLocaleDateString() : 'TBD';
+        const dates = `${startDate} to ${endDate}`;
+        
+        let actionBtn = '';
+        let borderColor = 'var(--accent-color)';
+
+        if (statusFilter === 'pending') {
+            actionBtn = `<button class="btn-action-small btn-quote" style="width:100%; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
+        } else if (statusFilter === 'quotation_sent') {
+            actionBtn = `
+                <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount || 0} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount || 0}</span></div>
+                <button class="btn-action-small" style="background:#27ae60; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid</button>
+            `;
+        } else if (statusFilter === 'confirmed') {
+            borderColor = '#27ae60';
+            actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
+        } else if (statusFilter === 'completed') {
+            borderColor = '#8e44ad';
+            actionBtn = `
+                <div style="text-align:center; font-weight:bold; color:#8e44ad;">Delivered via ${booking.courier_partner || 'N/A'}</div>
+                <div style="text-align:center; font-size:0.8rem; opacity:0.8; font-family: monospace;">Tracker: ${booking.tracking_id || 'N/A'}</div>
+            `;
+        }
+
+        grid.innerHTML += `
+            <div class="crm-card" style="border-left: 4px solid ${borderColor}; margin-bottom:15px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h4 style="color: var(--primary-color); margin:0 0 5px 0; font-size: 1.2rem;">${booking.customer_name || 'Customer'}</h4>
+                    <span style="font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">${booking.ticket_id}</span>
+                </div>
+                <div style="opacity: 0.8; margin-top: 10px; line-height: 1.6; font-size: 0.95rem;">
+                    <strong>Artist:</strong> ${booking.pro_name || 'N/A'} (${booking.artist_type || 'N/A'})<br>
+                    <strong>Dates:</strong> ${dates}<br>
+                    <strong>Category:</strong> ${booking.category || 'N/A'}<br>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <a href="tel:${booking.customer_phone || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">📞 Call</a>
+                    <a href="mailto:${booking.customer_email || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">✉️ Email</a>
+                </div>
+                <div style="margin-top: 15px;">${actionBtn}</div>
+            </div>
+        `;
+    });
 }
 
 // ==========================================
