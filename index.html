@@ -9,6 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body class="crm-body">
+    <!-- FULLSCREEN LOADING ANIMATION -->
+    <div id="crm-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease;">
+        <div style="width: 50px; height: 50px; border: 4px solid rgba(200, 169, 106, 0.3); border-top: 4px solid var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin-top: 15px; font-family: 'Playfair Display', serif; color: var(--primary-color); font-size: 1.2rem;">Syncing Data...</p>
+        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    </div>
 
     <!-- LOGIN SCREEN -->
     <div id="login-container" class="auth-wrapper">
@@ -57,7 +63,13 @@
         <main class="crm-main">
             <header class="crm-header">
                 <h1 id="tab-title">Artist Verification</h1>
-                <span class="mobile-nav-toggle" onclick="toggleSidebar()">&#8942;</span>
+                <div class="mobile-nav-toggle" onclick="toggleSidebar()" style="cursor: pointer; display: flex; align-items: center;">
+                    <svg viewBox="0 0 24 24" width="30" height="30" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" fill="none">
+                        <line x1="4" y1="7" x2="20" y2="7"></line>
+                        <line x1="4" y1="12" x2="14" y2="12"></line> 
+                        <line x1="4" y1="17" x2="20" y2="17"></line>
+                    </svg>
+                </div>
             </header>
             
             <!-- VERIFICATION TAB -->
@@ -83,7 +95,7 @@
             
             <!-- BOOKINGS PIPELINE -->
             <section id="tab-bookings" class="crm-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div>
                         <h2 style="font-size: 1.8rem; color: var(--primary-color);">Booking Pipeline</h2>
                         <p style="opacity: 0.8; font-size: 0.9rem;">Manage incoming requests and active jobs.</p>
@@ -91,33 +103,18 @@
                     <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadBookings()">↻ Refresh</button>
                 </div>
 
-                <div class="kanban-board">
-                    <!-- Column 1: New Requests -->
-                    <div class="kanban-column">
-                        <div class="kanban-header">New Requests <span id="count-pending" class="kanban-badge">0</span></div>
-                        <div id="col-pending" class="kanban-body"></div>
-                    </div>
-                    
-                    <!-- Column 2: Quotation Sent (Bill Pending) -->
-                    <div class="kanban-column">
-                        <div class="kanban-header">Bill Pending <span id="count-quotation_sent" class="kanban-badge">0</span></div>
-                        <div id="col-quotation_sent" class="kanban-body"></div>
-                    </div>
-
-                    <!-- Column 3: Confirmed -->
-                    <div class="kanban-column">
-                        <div class="kanban-header" style="border-top-color: #27ae60;">Confirmed <span id="count-confirmed" class="kanban-badge" style="background: #27ae60;">0</span></div>
-                        <div id="col-confirmed" class="kanban-body"></div>
-                    </div>
-
-                    <!-- Column 4: Completed -->
-                    <div class="kanban-column">
-                        <div class="kanban-header" style="border-top-color: #8e44ad;">Completed <span id="count-completed" class="kanban-badge" style="background: #8e44ad;">0</span></div>
-                        <div id="col-completed" class="kanban-body"></div>
-                    </div>
+                <!-- NEW: Scrollable Filter Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #eaddd7; padding-bottom: 15px; overflow-x: auto; white-space: nowrap;">
+                    <button id="btn-book-pending" class="btn-primary" style="background: var(--primary-color); border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('pending')">New Requests</button>
+                    <button id="btn-book-quotation_sent" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('quotation_sent')">Bill Pending</button>
+                    <button id="btn-book-confirmed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('confirmed')">Confirmed</button>
+                    <button id="btn-book-completed" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderBookingGrid('completed')">Completed</button>
                 </div>
-            </section>
 
+                <!-- Single Dynamic Grid (Replaces the columns) -->
+                <div id="bookings-dynamic-grid" class="crm-card-grid"></div>
+            </section>
+            
             <section id="tab-feedback" class="crm-tab">
                 <p>Feedback module loading...</p>
             </section>
