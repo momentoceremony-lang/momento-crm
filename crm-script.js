@@ -83,8 +83,21 @@ function checkCRMAuth() {
     } else {
         executeVisualTabSwitch(window.location.hash.replace('#', ''));
     }
-}
 
+    // 5. INJECT MOBILE PROFILE HEADER INTO DRAWER
+    const sidebarBrand = document.querySelector('.sidebar-brand');
+    if (!document.getElementById('crm-drawer-profile') && window.innerWidth <= 850) {
+        const initials = user.username.substring(0, 2).toUpperCase();
+        sidebarBrand.insertAdjacentHTML('afterend', `
+            <div id="crm-drawer-profile" class="drawer-profile-header desktop-hide">
+                <span class="drawer-close-btn" onclick="toggleSidebar()">&times;</span>
+                <div class="avatar">${initials}</div>
+                <h3>${user.username}</h3>
+                <p style="font-size: 0.8rem; opacity: 0.8; margin: 0; text-transform: uppercase;">${user.role}</p>
+            </div>
+        `);
+    }
+}
 
 // ==========================================
 // FORCED PASSWORD RESET
@@ -159,7 +172,21 @@ function executeVisualTabSwitch(tabName) {
 }
 
 function toggleSidebar() {
-    document.querySelector('.crm-sidebar').classList.toggle('show-menu');
+    const sidebar = document.querySelector('.crm-sidebar');
+    const overlay = document.getElementById('mobile-drawer-overlay');
+    
+    sidebar.classList.toggle('show-menu');
+    
+    if (sidebar.classList.contains('show-menu')) {
+        if(overlay) {
+            overlay.classList.add('show');
+            overlay.setAttribute('onclick', 'toggleSidebar()'); // Close when dark area tapped
+        }
+        document.body.style.overflow = 'hidden';
+    } else {
+        if(overlay) overlay.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
 }
 
 // ==========================================
