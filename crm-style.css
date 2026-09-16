@@ -207,3 +207,45 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; }
 .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
 .toggle-switch input:checked + .toggle-slider { background-color: #e74c3c; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+/* ==========================================
+   CRM EXPANDABLE DETAILS & FINANCIALS
+========================================== */
+.crm-ticket-header { 
+    cursor: pointer; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    transition: background 0.3s; 
+    padding: 10px; 
+    border-radius: 8px; 
+    margin: -10px -10px 5px -10px; 
+}
+.crm-ticket-header:hover { background: #fcf9f6; }
+.crm-chevron { font-size: 1rem; color: var(--accent-color); transition: transform 0.3s ease; margin-left: 10px; }
+.crm-chevron.up { transform: rotate(180deg); }
+
+.crm-timeline-container { 
+    display: none; 
+    padding-top: 15px; 
+    border-top: 1px dashed #ddd; 
+    margin-top: 15px; 
+}
+.crm-timeline-container.show { 
+    display: block; 
+    animation: slideDown 0.3s ease-out; 
+}
+
+.financial-box { 
+    background: #fcf9f6; 
+    padding: 15px; 
+    border-radius: 8px; 
+    border-left: 4px solid var(--accent-color); 
+    margin-bottom: 15px; 
+    font-size: 0.9rem; 
+}
+.financial-row { 
+    display: flex; 
+    justify-content: space-between; 
+    margin-bottom: 5px; 
+}
