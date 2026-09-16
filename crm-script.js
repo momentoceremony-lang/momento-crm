@@ -509,7 +509,7 @@ function renderBookingGrid(statusFilter) {
         let borderColor = 'var(--accent-color)';
 
         if (statusFilter === 'pending') {
-            actionBtn = `<button class="btn-action-small btn-quote" style="width:100%; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="openQuotationModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}', '${booking.pro_name}')">Generate Quote</button>`;
+            actionBtn = `<button class="btn-action-small btn-quote" style="width:100%; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="openQuotationModal('${booking.ticket_id}')">Generate Quote</button>`;
         } else if (statusFilter === 'quotation_sent') {
             actionBtn = `
                 <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount || 0} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount || 0}</span></div>
@@ -591,19 +591,30 @@ async function flipMaintenanceSwitch() {
     }
 }
 
-// Quotation Calculator Logic
-function openQuotationModal(ticketId, custName, custEmail, proName) {
-    document.getElementById('quote-ticket-display').innerText = `Ticket: ${ticketId} | Client: ${custName}`;
+function openQuotationModal(ticketId) {
+    // 1. Find the full booking details from our local CRM memory
+    const booking = crmBookingData.pending.find(b => b.ticket_id === ticketId);
+    if (!booking) return alert("Booking data not found.");
+
+    // 2. Populate the hidden fields and UI
+    document.getElementById('quote-ticket-display').innerText = `Ticket: ${ticketId} | Client: ${booking.customer_name}`;
     document.getElementById('quote-ticket-id').value = ticketId;
-    document.getElementById('quote-cust-name').value = custName;
-    document.getElementById('quote-cust-email').value = custEmail;
-    document.getElementById('quote-pro-name').value = proName;
+    document.getElementById('quote-cust-name').value = booking.customer_name;
+    document.getElementById('quote-cust-email').value = booking.customer_email;
+    document.getElementById('quote-pro-name').value = booking.pro_name;
     
-    document.getElementById('quote-rate').value = '';
+    // 3. AUTO-POPULATE RATE: Match the category to the artist's pricing JSON
+    let autoRate = '';
+    if (booking.pricing && booking.category) {
+        autoRate = booking.pricing[booking.category] || '';
+    }
+    
+    document.getElementById('quote-rate').value = autoRate;
     document.getElementById('quote-days').value = '1';
     document.getElementById('quote-discount').value = '';
-    calculateQuotation();
     
+    // 4. Run the math and open the modal
+    calculateQuotation();
     document.getElementById('modal-quotation').style.display = 'flex';
 }
 
