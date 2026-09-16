@@ -505,16 +505,58 @@ function renderBookingGrid(statusFilter) {
         const endDate = booking.end_date ? new Date(booking.end_date).toLocaleDateString() : 'TBD';
         const dates = `${startDate} to ${endDate}`;
         
+        // --- 1. FORMAT TIMESTAMPS ---
+        const formatDateTime = (isoString) => {
+            if (!isoString) return '<span style="color:#aaa;">Pending</span>';
+            const d = new Date(isoString);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        // --- 2. CALCULATE FINANCIALS ---
+        const totalQuote = parseFloat(booking.quotation_amount) || 0;
+        const advance = parseFloat(booking.advance_amount) || 0;
+        const discount = parseFloat(booking.discount) || 0;
+        const balanceDue = totalQuote - advance; // The remaining amount
+
+        let financialsHTML = '';
+        if (totalQuote > 0) {
+            financialsHTML = `
+                <div class="financial-box">
+                    <div class="financial-row"><span>Total Quoted:</span> <strong>₹${totalQuote}</strong></div>
+                    <div class="financial-row"><span>Advance Due/Paid:</span> <strong style="color: #27ae60;">₹${advance}</strong></div>
+                    ${discount > 0 ? `<div class="financial-row"><span>Discount:</span> <strong style="color: #e74c3c;">-₹${discount}</strong></div>` : ''}
+                    <div class="financial-row" style="border-top: 1px solid #ddd; padding-top: 5px; margin-top: 5px;">
+                        <span>Balance Due:</span> <strong style="color: #e74c3c;">₹${balanceDue}</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 3. BUILD THE TIMELINE HTML ---
+        const timelineHTML = `
+            <div style="font-size: 0.85rem; line-height: 1.6; color: #555;">
+                <div style="margin-bottom: 5px;"><strong>🗓️ Requested:</strong> ${formatDateTime(booking.created_at)}</div>
+                <div style="margin-bottom: 5px;"><strong>📄 Quoted:</strong> ${formatDateTime(booking.quoted_at)}</div>
+                <div style="margin-bottom: 5px;"><strong>💰 Confirmed (Adv Paid):</strong> ${formatDateTime(booking.confirmed_at)}</div>
+                <div style="margin-bottom: 5px;"><strong>📦 Completed:</strong> ${formatDateTime(booking.completed_at)}</div>
+                
+                <hr style="border: 0; border-top: 1px dashed #ddd; margin: 10px 0;">
+                
+                <div><strong>📍 Location:</strong> ${booking.landmark || 'N/A'} 
+                    ${booking.latitude ? `<a href="https://www.google.com/maps?q=${booking.latitude},${booking.longitude}" target="_blank" style="color:var(--accent-color); font-weight:bold;">(Open Map)</a>` : ''}
+                </div>
+                <div style="margin-top: 5px;"><strong>📝 Notes:</strong> ${booking.event_details || 'None'}</div>
+            </div>
+        `;
+
+        // --- 4. DETERMINE BUTTONS BASED ON STATUS ---
         let actionBtn = '';
         let borderColor = 'var(--accent-color)';
 
         if (statusFilter === 'pending') {
             actionBtn = `<button class="btn-action-small btn-quote" style="width:100%; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="openQuotationModal('${booking.ticket_id}')">Generate Quote</button>`;
         } else if (statusFilter === 'quotation_sent') {
-            actionBtn = `
-                <div style="text-align:center; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">₹${booking.quotation_amount || 0} Quoted<br><span style="font-size:0.8rem; opacity:0.8; color:#e74c3c;">Adv Due: ₹${booking.advance_amount || 0}</span></div>
-                <button class="btn-action-small" style="background:#27ae60; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid</button>
-            `;
+            actionBtn = `<button class="btn-action-small" style="background:#27ae60; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid (₹${advance})</button>`;
         } else if (statusFilter === 'confirmed') {
             borderColor = '#27ae60';
             actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
@@ -526,17 +568,35 @@ function renderBookingGrid(statusFilter) {
             `;
         }
 
+        // --- 5. RENDER THE FULL CARD ---
         grid.innerHTML += `
             <div class="crm-card" style="border-left: 4px solid ${borderColor}; margin-bottom:15px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <h4 style="color: var(--primary-color); margin:0 0 5px 0; font-size: 1.2rem;">${booking.customer_name || 'Customer'}</h4>
-                    <span style="font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">${booking.ticket_id}</span>
+                
+                <!-- CLICKABLE HEADER -->
+                <div class="crm-ticket-header" onclick="toggleCrmTimeline('${booking.ticket_id}')">
+                    <div style="flex:1;">
+                        <h4 style="color: var(--primary-color); margin:0 0 5px 0; font-size: 1.2rem;">${booking.customer_name || 'Customer'}</h4>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <span style="font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">${booking.ticket_id}</span>
+                        <span class="crm-chevron" id="crm-chev-${booking.ticket_id}">▼</span>
+                    </div>
                 </div>
-                <div style="opacity: 0.8; margin-top: 10px; line-height: 1.6; font-size: 0.95rem;">
+
+                <!-- QUICK INFO -->
+                <div style="opacity: 0.8; margin-top: 5px; line-height: 1.6; font-size: 0.95rem;">
                     <strong>Artist:</strong> ${booking.pro_name || 'N/A'} (${booking.artist_type || 'N/A'})<br>
                     <strong>Dates:</strong> ${dates}<br>
-                    <strong>Category:</strong> ${booking.category || 'N/A'}<br>
+                    <strong>Category:</strong> ${booking.category || 'N/A'}
                 </div>
+
+                <!-- HIDDEN ACCORDION DETAILS -->
+                <div id="crm-timeline-${booking.ticket_id}" class="crm-timeline-container">
+                    ${financialsHTML}
+                    ${timelineHTML}
+                </div>
+
+                <!-- CONTACT & ACTION BUTTONS -->
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
                     <a href="tel:${booking.customer_phone || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">📞 Call</a>
                     <a href="mailto:${booking.customer_email || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">✉️ Email</a>
@@ -730,3 +790,21 @@ async function submitDispatch() {
     } catch (e) { alert("Network error."); } 
     finally { btn.innerText = "Complete Job"; }
 }
+
+// Toggle expanding details inside the CRM cards
+window.toggleCrmTimeline = function(ticketId) {
+    const timeline = document.getElementById(`crm-timeline-${ticketId}`);
+    const chev = document.getElementById(`crm-chev-${ticketId}`);
+    
+    if (timeline.classList.contains('show')) {
+        timeline.classList.remove('show');
+        chev.classList.remove('up');
+    } else {
+        // Optional: Uncomment the next two lines if you want opening one card to automatically close the others
+        // document.querySelectorAll('.crm-timeline-container').forEach(el => el.classList.remove('show'));
+        // document.querySelectorAll('.crm-chevron').forEach(el => el.classList.remove('up'));
+        
+        timeline.classList.add('show');
+        chev.classList.add('up');
+    }
+};
