@@ -543,9 +543,15 @@ function renderBookingGrid(statusFilter) {
                 <div style="margin-bottom: 5px;"><strong>🗓️ Requested:</strong> ${formatDateTime(booking.created_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>📄 Quoted:</strong> ${formatDateTime(booking.quoted_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>💰 Confirmed (Adv Paid):</strong> ${formatDateTime(booking.confirmed_at)}</div>
-                <div style="margin-bottom: 5px;"><strong>📸 Artist Arrived:</strong> ${formatDateTime(booking.artist_arrived_at)} 
-                    ${booking.arrival_photo_url ? `<a href="${booking.arrival_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[View Photo Proof]</a>` : ''}
+                
+                <div style="margin-bottom: 5px;"><strong>📸 Arrived:</strong> ${formatDateTime(booking.artist_arrived_at)}${booking.arrival_photo_url ? `<a href="${booking.arrival_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
+                    ${booking.arrival_lat ? `<a href="https://www.google.com/maps?q=${booking.arrival_lat},${booking.arrival_lng}" target="_blank" style="color:#27ae60; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Map Pin]</a>` : ''}
                 </div>
+
+                <div style="margin-bottom: 5px;"><strong>🏁 Job Finished (Left):</strong> ${formatDateTime(booking.artist_left_at)}${booking.left_photo_url ? `<a href="${booking.left_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
+                    ${booking.left_lat ? `<a href="https://www.google.com/maps?q=${booking.left_lat},${booking.left_lng}" target="_blank" style="color:#27ae60; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Map Pin]</a>` : ''}
+                </div>
+
                 <div style="margin-bottom: 5px;"><strong>💳 Final Payment:</strong> ${formatDateTime(booking.final_payment_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>📦 Completed:</strong> ${formatDateTime(booking.completed_at)}</div>
                 
