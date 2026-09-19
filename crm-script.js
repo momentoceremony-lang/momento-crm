@@ -520,7 +520,7 @@ function renderBookingGrid(statusFilter) {
     // INJECT SUB-FILTER UI (Only visible inside the Confirmed tab)
     if (statusFilter === 'confirmed') {
         grid.innerHTML += `
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; width: 100%; max-width: 700px; overflow-x: auto; padding-bottom: 10px; justify-content: start;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; width: 100%; max-width: 1000px; overflow-x: auto; padding-bottom: 10px; justify-content: start;">
                 <button onclick="setSubFilter('all')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'all' ? 'background: var(--accent-color); color: #0f0f10; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">All Stages</button>
                 <button onclick="setSubFilter('upcoming')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'upcoming' ? 'background: #3498db; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">Upcoming</button>
                 <button onclick="setSubFilter('artist_arrived')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'artist_arrived' ? 'background: #27ae60; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">At Location</button>
@@ -636,7 +636,7 @@ function renderBookingGrid(statusFilter) {
 
         // NEW: Max-Width 700px ensures it looks like mobile on Desktop
         grid.innerHTML += `
-            <div class="crm-card" style="width: 100%; max-width: 700px; border-left: 4px solid ${borderColor}; margin-bottom: 20px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+            <div class="crm-card" style="width: 100%; max-width: 1000px; border-left: 4px solid ${borderColor}; margin-bottom: 20px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
                 <div class="crm-ticket-header" onclick="toggleCrmTimeline('${booking.ticket_id}')">
                     <div style="flex:1;">
                         <h4 style="color: var(--primary-color); margin:0 0 5px 0; font-size: 1.2rem;">${booking.customer_name || 'Customer'}</h4>
