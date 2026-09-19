@@ -450,10 +450,15 @@ async function loadBookings() {
         if (data.success && data.data && data.data.length > 0) {
             data.data.forEach(booking => {
                 let rawStatus = booking.status ? booking.status.toLowerCase().trim() : 'pending';
-                if (!['pending', 'quotation_sent', 'confirmed', 'completed'].includes(rawStatus)) {
-                    rawStatus = 'pending';
+                
+                // Group all active post-advance phases into the CRM's 'Confirmed' tab
+                if (['confirmed', 'artist_arrived', 'final_paid'].includes(rawStatus)) {
+                    crmBookingData['confirmed'].push(booking);
+                } else if (['pending', 'quotation_sent', 'completed'].includes(rawStatus)) {
+                    crmBookingData[rawStatus].push(booking);
+                } else {
+                    crmBookingData['pending'].push(booking);
                 }
-                crmBookingData[rawStatus].push(booking);
             });
         }
         
