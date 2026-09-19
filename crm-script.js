@@ -652,28 +652,54 @@ async function flipMaintenanceSwitch() {
 }
 
 function openQuotationModal(ticketId) {
-    // 1. Find the full booking details from our local CRM memory
     const booking = crmBookingData.pending.find(b => b.ticket_id === ticketId);
     if (!booking) return alert("Booking data not found.");
 
-    // 2. Populate the hidden fields and UI
     document.getElementById('quote-ticket-display').innerText = `Ticket: ${ticketId} | Client: ${booking.customer_name}`;
     document.getElementById('quote-ticket-id').value = ticketId;
     document.getElementById('quote-cust-name').value = booking.customer_name;
     document.getElementById('quote-cust-email').value = booking.customer_email;
-    document.getElementById('quote-pro-name').value = booking.pro_name;
     
-    // 3. AUTO-POPULATE RATE: Match the category to the artist's pricing JSON
+    // 1. AUTO-CALCULATE NUMBER OF DAYS
+    let calcDays = 1;
+    if (booking.start_date && booking.end_date) {
+        const start = new Date(booking.start_date);
+        const end = new Date(booking.end_date);
+        // Calculate difference in time, convert to days, and add 1 (so same day = 1, 20th to 23rd = 4)
+        const timeDiff = end.getTime() - start.getTime();
+        calcDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+        if (isNaN(calcDays) || calcDays < 1) calcDays = 1;
+    }
+    document.getElementById('quote-days').value = calcDays;
+    
+    // 2. SMART ARTIST DROPDOWN
+    const artistSelect = document.getElementById('quote-pro-name');
+    artistSelect.innerHTML = ''; // Clear previous options
+    
+    // Filter your live artists by the required profession (e.g., Makeup Artist)
+    const availablePros = crmArtistData.approved.filter(pro => pro.pro_type === booking.artist_type);
+    
+    let requestedFound = false;
+    availablePros.forEach(pro => {
+        const isSelected = pro.name === booking.pro_name ? 'selected' : '';
+        if (isSelected) requestedFound = true;
+        artistSelect.innerHTML += `<option value="${pro.name}" ${isSelected}>${pro.name} (Live)</option>`;
+    });
+
+    // If the requested artist isn't verified or deleted, still show them as an option at the top
+    if (!requestedFound) {
+        artistSelect.innerHTML = `<option value="${booking.pro_name}" selected>${booking.pro_name} (Requested - Not Live)</option>` + artistSelect.innerHTML;
+    }
+
+    // 3. AUTO-POPULATE RATE
     let autoRate = '';
     if (booking.pricing && booking.category) {
         autoRate = booking.pricing[booking.category] || '';
     }
-    
     document.getElementById('quote-rate').value = autoRate;
-    document.getElementById('quote-days').value = '1';
     document.getElementById('quote-discount').value = '';
+    document.getElementById('quote-advance').value = '';
     
-    // 4. Run the math and open the modal
     calculateQuotation();
     document.getElementById('modal-quotation').style.display = 'flex';
 }
