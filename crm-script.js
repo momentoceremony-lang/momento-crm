@@ -437,6 +437,13 @@ async function submitRejection() {
 // ==========================================
 let crmBookingData = { pending: [], quotation_sent: [], confirmed: [], completed: [] };
 let currentBookingTab = 'pending';
+let activeSubFilter = 'all'; // NEW: Tracks the active sub-filter
+
+// Global function to trigger the sub-filters
+window.setSubFilter = function(filter) {
+    activeSubFilter = filter;
+    renderBookingGrid('confirmed');
+};
 
 async function loadBookings() {
     showLoader();
@@ -444,14 +451,13 @@ async function loadBookings() {
         const res = await fetch(`${API_BASE_URL}/bookings`);
         const data = await res.json();
         
-        // Reset local memory
         crmBookingData = { pending: [], quotation_sent: [], confirmed: [], completed: [] }; 
 
         if (data.success && data.data && data.data.length > 0) {
             data.data.forEach(booking => {
                 let rawStatus = booking.status ? booking.status.toLowerCase().trim() : 'pending';
                 
-                // Group all active post-advance phases into the CRM's 'Confirmed' tab
+                // FIXED: 'artist_left' is now correctly routed to the Confirmed tab!
                 if (['confirmed', 'artist_arrived', 'artist_left', 'final_paid'].includes(rawStatus)) {
                     crmBookingData['confirmed'].push(booking);
                 } else if (['pending', 'quotation_sent', 'completed'].includes(rawStatus)) {
@@ -472,10 +478,16 @@ async function loadBookings() {
 
 function renderBookingGrid(statusFilter) {
     currentBookingTab = statusFilter;
+    
+    // Reset sub-filter if we switch main tabs
+    if (statusFilter !== 'confirmed' && activeSubFilter !== 'all') {
+        activeSubFilter = 'all';
+    }
+
     const grid = document.getElementById('bookings-dynamic-grid');
     if (!grid) return;
     
-    // Update Filter Button Styles
+    // Update Main Filter Button Styles
     ['pending', 'quotation_sent', 'confirmed', 'completed'].forEach(tab => {
         const btn = document.getElementById(`btn-book-${tab}`);
         if (btn) {
@@ -491,17 +503,44 @@ function renderBookingGrid(statusFilter) {
         }
     });
 
+    // NEW: Force 1-Column Layout for Desktop (Centered)
+    grid.style.display = 'flex';
+    grid.style.flexDirection = 'column';
+    grid.style.alignItems = 'center';
     grid.innerHTML = '';
-    const bookingsToRender = crmBookingData[statusFilter] || [];
 
-    // Update the numbers in the tabs dynamically (SAFELY)
+    let bookingsToRender = crmBookingData[statusFilter] || [];
+
+    // Update Tab Counters
     if (document.getElementById('count-pending')) document.getElementById('count-pending').innerText = crmBookingData.pending.length;
     if (document.getElementById('count-quotation_sent')) document.getElementById('count-quotation_sent').innerText = crmBookingData.quotation_sent.length;
     if (document.getElementById('count-confirmed')) document.getElementById('count-confirmed').innerText = crmBookingData.confirmed.length;
     if (document.getElementById('count-completed')) document.getElementById('count-completed').innerText = crmBookingData.completed.length;
 
+    // INJECT SUB-FILTER UI (Only visible inside the Confirmed tab)
+    if (statusFilter === 'confirmed') {
+        grid.innerHTML += `
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; width: 100%; max-width: 700px; overflow-x: auto; padding-bottom: 10px; justify-content: start;">
+                <button onclick="setSubFilter('all')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'all' ? 'background: var(--accent-color); color: #0f0f10; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">All Stages</button>
+                <button onclick="setSubFilter('upcoming')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'upcoming' ? 'background: #3498db; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">Upcoming</button>
+                <button onclick="setSubFilter('artist_arrived')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'artist_arrived' ? 'background: #27ae60; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">At Location</button>
+                <button onclick="setSubFilter('artist_left')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'artist_left' ? 'background: #e74c3c; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">Final Billing</button>
+                <button onclick="setSubFilter('final_paid')" style="padding: 8px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: 0.3s; ${activeSubFilter === 'final_paid' ? 'background: #8e44ad; color: #fff; border: none; font-weight:bold;' : 'background: white; color: #333; border: 1px solid #ddd;'}">Ready to Dispatch</button>
+            </div>
+        `;
+
+        // Apply the Sub-Filter logic
+        if (activeSubFilter !== 'all') {
+            if (activeSubFilter === 'upcoming') {
+                bookingsToRender = bookingsToRender.filter(b => b.status === 'confirmed');
+            } else {
+                bookingsToRender = bookingsToRender.filter(b => b.status === activeSubFilter);
+            }
+        }
+    }
+
     if (bookingsToRender.length === 0) {
-        grid.innerHTML = `<p style="opacity: 0.7; grid-column: 1/-1; padding: 15px;">No ${statusFilter.replace('_', ' ')} bookings found.</p>`;
+        grid.innerHTML += `<p style="opacity: 0.7; width: 100%; text-align: center; padding: 15px;">No ${activeSubFilter !== 'all' ? activeSubFilter.replace('_', ' ') : statusFilter.replace('_', ' ')} bookings found.</p>`;
         return;
     }
 
@@ -510,18 +549,16 @@ function renderBookingGrid(statusFilter) {
         const endDate = booking.end_date ? new Date(booking.end_date).toLocaleDateString() : 'TBD';
         const dates = `${startDate} to ${endDate}`;
         
-        // --- 1. FORMAT TIMESTAMPS ---
         const formatDateTime = (isoString) => {
             if (!isoString) return '<span style="color:#aaa;">Pending</span>';
             const d = new Date(isoString);
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         };
 
-        // --- 2. CALCULATE FINANCIALS ---
         const totalQuote = parseFloat(booking.quotation_amount) || 0;
         const advance = parseFloat(booking.advance_amount) || 0;
         const discount = parseFloat(booking.discount) || 0;
-        const balanceDue = totalQuote - advance; // The remaining amount
+        const balanceDue = totalQuote - advance; 
 
         let financialsHTML = '';
         if (totalQuote > 0) {
@@ -537,18 +574,19 @@ function renderBookingGrid(statusFilter) {
             `;
         }
 
-        // --- 3. BUILD THE TIMELINE HTML ---
         const timelineHTML = `
             <div style="font-size: 0.85rem; line-height: 1.6; color: #555;">
                 <div style="margin-bottom: 5px;"><strong>🗓️ Requested:</strong> ${formatDateTime(booking.created_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>📄 Quoted:</strong> ${formatDateTime(booking.quoted_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>💰 Confirmed (Adv Paid):</strong> ${formatDateTime(booking.confirmed_at)}</div>
                 
-                <div style="margin-bottom: 5px;"><strong>📸 Arrived:</strong> ${formatDateTime(booking.artist_arrived_at)}${booking.arrival_photo_url ? `<a href="${booking.arrival_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
+                <div style="margin-bottom: 5px;"><strong>📸 Arrived:</strong> ${formatDateTime(booking.artist_arrived_at)} 
+                    ${booking.arrival_photo_url ? `<a href="${booking.arrival_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
                     ${booking.arrival_lat ? `<a href="https://www.google.com/maps?q=${booking.arrival_lat},${booking.arrival_lng}" target="_blank" style="color:#27ae60; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Map Pin]</a>` : ''}
                 </div>
 
-                <div style="margin-bottom: 5px;"><strong>🏁 Job Finished (Left):</strong> ${formatDateTime(booking.artist_left_at)}${booking.left_photo_url ? `<a href="${booking.left_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
+                <div style="margin-bottom: 5px;"><strong>🏁 Job Finished (Left):</strong> ${formatDateTime(booking.artist_left_at)} 
+                    ${booking.left_photo_url ? `<a href="${booking.left_photo_url}" target="_blank" style="color:var(--accent-color); font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Photo]</a>` : ''}
                     ${booking.left_lat ? `<a href="https://www.google.com/maps?q=${booking.left_lat},${booking.left_lng}" target="_blank" style="color:#27ae60; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-left:5px;">[Map Pin]</a>` : ''}
                 </div>
 
@@ -564,10 +602,10 @@ function renderBookingGrid(statusFilter) {
             </div>
         `;
         
-        // --- 4. DETERMINE BUTTONS BASED ON STATUS ---
         let actionBtn = '';
         let borderColor = 'var(--accent-color)';
 
+        // DYNAMIC BUTTON LOGIC
         if (statusFilter === 'pending') {
             actionBtn = `<button class="btn-action-small btn-quote" style="width:100%; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="openQuotationModal('${booking.ticket_id}')">Generate Quote</button>`;
         } else if (statusFilter === 'quotation_sent') {
@@ -576,14 +614,16 @@ function renderBookingGrid(statusFilter) {
             let currentStatus = booking.status || 'confirmed';
             
             if (currentStatus === 'confirmed') {
-                actionBtn = `<div style="text-align:center; padding:10px; font-weight:bold; color:#8e44ad; background:#f4e8f9; border-radius:6px;">Waiting for Artist to Arrive</div>`;
+                borderColor = '#3498db';
+                actionBtn = `<div style="text-align:center; padding:10px; font-weight:bold; color:#3498db; background:#ebf5fb; border-radius:6px;">Waiting for Artist to Arrive</div>`;
             } else if (currentStatus === 'artist_arrived') {
+                borderColor = '#27ae60';
                 actionBtn = `<div style="text-align:center; padding:10px; font-weight:bold; color:#27ae60; background:#e9f7ef; border-radius:6px;">Artist is currently at location</div>`;
             } else if (currentStatus === 'artist_left') {
-                borderColor = '#e74c3c';
+                borderColor = '#e74c3c'; // Red for missing payment
                 actionBtn = `<button class="btn-action-small" style="background:#e74c3c; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="sendFinalPaymentLink('${booking.ticket_id}', ${balanceDue}, '${booking.customer_email}', '${booking.customer_name}')">Send Final Payment Link (₹${balanceDue})</button>`;
             } else if (currentStatus === 'final_paid') {
-                borderColor = '#27ae60';
+                borderColor = '#8e44ad'; // Purple for dispatch
                 actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
             }
         } else if (statusFilter === 'completed') {
@@ -594,11 +634,9 @@ function renderBookingGrid(statusFilter) {
             `;
         }
 
-        // --- 5. RENDER THE FULL CARD ---
+        // NEW: Max-Width 700px ensures it looks like mobile on Desktop
         grid.innerHTML += `
-            <div class="crm-card" style="border-left: 4px solid ${borderColor}; margin-bottom:15px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-                
-                <!-- CLICKABLE HEADER -->
+            <div class="crm-card" style="width: 100%; max-width: 700px; border-left: 4px solid ${borderColor}; margin-bottom: 20px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
                 <div class="crm-ticket-header" onclick="toggleCrmTimeline('${booking.ticket_id}')">
                     <div style="flex:1;">
                         <h4 style="color: var(--primary-color); margin:0 0 5px 0; font-size: 1.2rem;">${booking.customer_name || 'Customer'}</h4>
@@ -609,20 +647,17 @@ function renderBookingGrid(statusFilter) {
                     </div>
                 </div>
 
-                <!-- QUICK INFO -->
                 <div style="opacity: 0.8; margin-top: 5px; line-height: 1.6; font-size: 0.95rem;">
                     <strong>Artist:</strong> ${booking.pro_name || 'N/A'} (${booking.artist_type || 'N/A'})<br>
                     <strong>Dates:</strong> ${dates}<br>
                     <strong>Category:</strong> ${booking.category || 'N/A'}
                 </div>
 
-                <!-- HIDDEN ACCORDION DETAILS -->
                 <div id="crm-timeline-${booking.ticket_id}" class="crm-timeline-container">
                     ${financialsHTML}
                     ${timelineHTML}
                 </div>
 
-                <!-- CONTACT & ACTION BUTTONS -->
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
                     <a href="tel:${booking.customer_phone || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">📞 Call</a>
                     <a href="mailto:${booking.customer_email || ''}" style="flex:1; background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:6px; font-weight:bold;">✉️ Email</a>
@@ -871,6 +906,21 @@ async function sendFinalPaymentLink(ticketId, balanceDue, customerEmail, custome
         const data = await res.json();
         if(data.success) {
             alert("Final payment link dispatched to customer!");
+        } else alert("Error: " + data.error);
+    } catch(e) { alert("Error sending payment link."); }
+}
+
+async function sendFinalPaymentLink(ticketId, balanceDue, customerEmail, customerName) {
+    if(!confirm(`Send an automated Razorpay link to collect the final balance of ₹${balanceDue}?`)) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/send-final-payment`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ ticketId, balanceDue, customerEmail, customerName })
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert("Final payment link dispatched to customer!");
+            loadBookings(); // Automatically refresh the UI
         } else alert("Error: " + data.error);
     } catch(e) { alert("Error sending payment link."); }
 }
