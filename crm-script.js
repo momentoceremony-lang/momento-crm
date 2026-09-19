@@ -452,7 +452,7 @@ async function loadBookings() {
                 let rawStatus = booking.status ? booking.status.toLowerCase().trim() : 'pending';
                 
                 // Group all active post-advance phases into the CRM's 'Confirmed' tab
-                if (['confirmed', 'artist_arrived', 'final_paid'].includes(rawStatus)) {
+                if (['confirmed', 'artist_arrived', 'artist_left', 'final_paid'].includes(rawStatus)) {
                     crmBookingData['confirmed'].push(booking);
                 } else if (['pending', 'quotation_sent', 'completed'].includes(rawStatus)) {
                     crmBookingData[rawStatus].push(booking);
@@ -573,8 +573,19 @@ function renderBookingGrid(statusFilter) {
         } else if (statusFilter === 'quotation_sent') {
             actionBtn = `<button class="btn-action-small" style="background:#27ae60; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="confirmBookingPayment('${booking.ticket_id}')">Mark Advance Paid (₹${advance})</button>`;
         } else if (statusFilter === 'confirmed') {
-            borderColor = '#27ae60';
-            actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
+            let currentStatus = booking.status || 'confirmed';
+            
+            if (currentStatus === 'confirmed') {
+                actionBtn = `<div style="text-align:center; padding:10px; font-weight:bold; color:#8e44ad; background:#f4e8f9; border-radius:6px;">Waiting for Artist to Arrive</div>`;
+            } else if (currentStatus === 'artist_arrived') {
+                actionBtn = `<div style="text-align:center; padding:10px; font-weight:bold; color:#27ae60; background:#e9f7ef; border-radius:6px;">Artist is currently at location</div>`;
+            } else if (currentStatus === 'artist_left') {
+                borderColor = '#e74c3c';
+                actionBtn = `<button class="btn-action-small" style="background:#e74c3c; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="sendFinalPaymentLink('${booking.ticket_id}', ${balanceDue}, '${booking.customer_email}', '${booking.customer_name}')">Send Final Payment Link (₹${balanceDue})</button>`;
+            } else if (currentStatus === 'final_paid') {
+                borderColor = '#27ae60';
+                actionBtn = `<button class="btn-action-small" style="background:#8e44ad; color:white; width:100%; padding:10px; border-radius:6px; font-weight:bold; border:none; cursor:pointer;" onclick="openDispatchModal('${booking.ticket_id}', '${booking.customer_name}', '${booking.customer_email}')">Dispatch Deliverables</button>`;
+            }
         } else if (statusFilter === 'completed') {
             borderColor = '#8e44ad';
             actionBtn = `
@@ -849,3 +860,17 @@ window.toggleCrmTimeline = function(ticketId) {
         chev.classList.add('up');
     }
 };
+
+async function sendFinalPaymentLink(ticketId, balanceDue, customerEmail, customerName) {
+    if(!confirm(`Send an automated Razorpay link to collect the final balance of ₹${balanceDue}?`)) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/send-final-payment`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ ticketId, balanceDue, customerEmail, customerName })
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert("Final payment link dispatched to customer!");
+        } else alert("Error: " + data.error);
+    } catch(e) { alert("Error sending payment link."); }
+}
