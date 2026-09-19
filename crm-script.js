@@ -538,6 +538,8 @@ function renderBookingGrid(statusFilter) {
                 <div style="margin-bottom: 5px;"><strong>🗓️ Requested:</strong> ${formatDateTime(booking.created_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>📄 Quoted:</strong> ${formatDateTime(booking.quoted_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>💰 Confirmed (Adv Paid):</strong> ${formatDateTime(booking.confirmed_at)}</div>
+                <div style="margin-bottom: 5px;"><strong>📸 Artist Arrived:</strong> ${formatDateTime(booking.artist_arrived_at)}</div>
+                <div style="margin-bottom: 5px;"><strong>💳 Final Payment:</strong> ${formatDateTime(booking.final_payment_at)}</div>
                 <div style="margin-bottom: 5px;"><strong>📦 Completed:</strong> ${formatDateTime(booking.completed_at)}</div>
                 
                 <hr style="border: 0; border-top: 1px dashed #ddd; margin: 10px 0;">
