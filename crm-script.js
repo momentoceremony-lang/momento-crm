@@ -69,7 +69,7 @@ function checkCRMAuth() {
     fetchSystemStatus(); 
     initFeedbackUI(); 
     loadFeedback();   
-    loadPendingGallery(); // NEW: Load Gallery Images
+    loadCRMGallery(); // NEW: Load Gallery Images
     
     // 4. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
@@ -1125,92 +1125,145 @@ async function submitWarning() {
 // ==========================================
 // CRM GALLERY MODERATION ENGINE
 // ==========================================
-async function loadPendingGallery() {
+let crmGalleryData = { pending: [], approved: [] };
+let currentGalleryTab = 'pending';
+
+async function loadCRMGallery() {
     const container = document.getElementById('tab-gallery');
     if (!container) return;
 
-    // Initialize UI if empty
+    // Initialize UI with correct Refresh button and Filter tabs
     if (!document.getElementById('crm-gallery-grid')) {
+        // Note: Removed the hardcoded HTML from index(1).html and moved it here so it renders dynamically
         container.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <p style="opacity: 0.8; margin:0;">Approve images to push them to the public View.html gallery.</p>
-                <button onclick="loadPendingGallery()" style="padding: 8px 15px; border-radius: 8px; background: #f0f0f0; border: none; cursor: pointer; font-weight: bold;">↻ Refresh</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <h2 style="font-size: 1.8rem; color: var(--primary-color);">Gallery Moderation</h2>
+                    <p style="opacity: 0.8; font-size: 0.9rem; margin:0;">Approve images to push them to the public View.html gallery.</p>
+                </div>
+                <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadCRMGallery()">↻ Refresh</button>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #eaddd7; padding-bottom: 15px;">
+                <button id="btn-gal-pending" class="btn-primary" style="background: var(--primary-color); border-radius: 20px; padding: 8px 15px;" onclick="renderGalleryGrid('pending')">Pending Approvals (<span id="count-gal-pending">0</span>)</button>
+                <button id="btn-gal-approved" class="btn-primary" style="background: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; padding: 8px 15px;" onclick="renderGalleryGrid('approved')">Approved Gallery (<span id="count-gal-approved">0</span>)</button>
             </div>
             <div id="crm-gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;"></div>
         `;
     }
 
     const grid = document.getElementById('crm-gallery-grid');
-    grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading pending images...</p>';
+    grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading images...</p>';
 
     try {
-        const res = await fetch(`${API_BASE_URL}/gallery/pending`);
+        const res = await fetch(`${API_BASE_URL}/crm/gallery/all`);
         const data = await res.json();
 
-        if (data.success) {
-            grid.innerHTML = '';
-            if (data.data.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; background: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"><h3 style="color: #27ae60; margin-bottom: 5px;">All caught up!</h3><p style="opacity: 0.6; margin: 0;">There are no pending images to review.</p></div>';
-                return;
-            }
+        crmGalleryData = { pending: [], approved: [] };
 
+        if (data.success && data.data) {
             data.data.forEach(item => {
-                grid.innerHTML += `
-                    <div class="crm-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; display: flex; flex-direction: column;">
-                        <div style="position: relative;">
-                            <img src="${item.image_url}" style="width: 100%; height: 250px; object-fit: cover; cursor: pointer; border-bottom: 1px solid #eee;" onclick="window.open('${item.image_url}', '_blank')">
-                            <span style="position: absolute; top: 10px; right: 10px; background: var(--accent-color); color: #0f0f10; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">${item.category}</span>
-                        </div>
-                        <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                                <img src="${item.dp_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd;">
-                                <span style="font-weight: bold; color: var(--primary-color);">${item.pro_name}</span>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button onclick="approveGalleryImage(${item.id})" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✅ Approve</button>
-                                <button onclick="rejectGalleryImage(${item.id})" style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ Reject</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                if (item.is_approved) {
+                    crmGalleryData.approved.push(item);
+                } else {
+                    crmGalleryData.pending.push(item);
+                }
             });
         }
+        renderGalleryGrid(currentGalleryTab);
     } catch (e) {
         grid.innerHTML = '<p style="color: red; grid-column: 1/-1;">Failed to load images. Please check your connection.</p>';
     }
 }
 
+function renderGalleryGrid(filter) {
+    currentGalleryTab = filter;
+    const grid = document.getElementById('crm-gallery-grid');
+    if (!grid) return;
+
+    // Update Counters
+    document.getElementById('count-gal-pending').innerText = crmGalleryData.pending.length;
+    document.getElementById('count-gal-approved').innerText = crmGalleryData.approved.length;
+
+    // Update Button Styles
+    const btnPen = document.getElementById('btn-gal-pending');
+    const btnApp = document.getElementById('btn-gal-approved');
+
+    if (filter === 'pending') {
+        btnPen.style.background = 'var(--primary-color)'; btnPen.style.color = 'white'; btnPen.style.border = 'none';
+        btnApp.style.background = 'transparent'; btnApp.style.color = '#333'; btnApp.style.border = '1px solid #ccc';
+    } else {
+        btnApp.style.background = 'var(--primary-color)'; btnApp.style.color = 'white'; btnApp.style.border = 'none';
+        btnPen.style.background = 'transparent'; btnPen.style.color = '#333'; btnPen.style.border = '1px solid #ccc';
+    }
+
+    grid.innerHTML = '';
+    const data = crmGalleryData[filter];
+
+    if (data.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; background: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"><h3 style="color: #27ae60; margin-bottom: 5px;">All caught up!</h3><p style="opacity: 0.6; margin: 0;">There are no ${filter} images to review.</p></div>`;
+        return;
+    }
+
+    data.forEach(item => {
+        let actionFooter = '';
+        const artistName = item.pro_name ? item.pro_name : '<span style="color:#e74c3c;">Artist Quit/Deleted</span>';
+        const dpImg = item.dp_url ? `<img src="${item.dp_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd;">` : '❌';
+
+        if (filter === 'pending') {
+            actionFooter = `
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button onclick="approveGalleryImage(${item.id})" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✅ Approve</button>
+                    <button onclick="rejectGalleryImage(${item.id})" style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ Reject</button>
+                </div>
+            `;
+        } else {
+            actionFooter = `
+                <div style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; font-size: 0.85rem; color: #555; border: 1px solid #eee;">
+                    <strong>Approved By:</strong> ${item.approved_by}<br>
+                    <strong>Date:</strong> ${new Date(item.approved_at).toLocaleDateString()}
+                </div>
+                <button onclick="rejectGalleryImage(${item.id})" style="width: 100%; margin-top: 10px; background: transparent; color: #e74c3c; border: 1px solid #e74c3c; padding: 8px; border-radius: 8px; font-weight: bold; cursor: pointer;">🗑️ Remove from Gallery</button>
+            `;
+        }
+
+        grid.innerHTML += `
+            <div class="crm-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; display: flex; flex-direction: column;">
+                <div style="position: relative;">
+                    <img src="${item.image_url}" style="width: 100%; height: 250px; object-fit: cover; cursor: pointer; border-bottom: 1px solid #eee;" onclick="window.open('${item.image_url}', '_blank')">
+                    <span style="position: absolute; top: 10px; right: 10px; background: var(--accent-color); color: #0f0f10; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">${item.category}</span>
+                </div>
+                <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        ${dpImg}
+                        <span style="font-weight: bold; color: var(--primary-color);">${artistName}</span>
+                    </div>
+                    ${actionFooter}
+                </div>
+            </div>
+        `;
+    });
+}
+
 async function approveGalleryImage(id) {
+    const user = JSON.parse(localStorage.getItem('crmUser'));
     try {
-        const res = await fetch(`${API_BASE_URL}/gallery/approve`, {
+        const res = await fetch(`${API_BASE_URL}/crm/gallery/approve`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
+            body: JSON.stringify({ id, adminName: user.username })
         });
         const data = await res.json();
-        if (data.success) {
-            loadPendingGallery(); // Refresh the grid
-        } else {
-            alert('Error approving image');
-        }
-    } catch(e) { 
-        alert('Network error while approving.'); 
-    }
+        if (data.success) loadCRMGallery();
+    } catch(e) { alert('Network error while approving.'); }
 }
 
 async function rejectGalleryImage(id) {
-    if(!confirm("Are you sure you want to reject and delete this image? It will not appear on the public gallery.")) return;
+    if(!confirm("Are you sure you want to permanently delete this image from the server?")) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/gallery/reject`, {
+        const res = await fetch(`${API_BASE_URL}/crm/gallery/reject`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
         });
         const data = await res.json();
-        if (data.success) {
-            loadPendingGallery(); // Refresh the grid
-        } else {
-            alert('Error rejecting image');
-        }
-    } catch(e) { 
-        alert('Network error while rejecting.'); 
-    }
+        if (data.success) loadCRMGallery();
+    } catch(e) { alert('Network error while rejecting.'); }
 }
