@@ -172,6 +172,16 @@
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
+
+                <!-- NEW: MIGRATION TOOL -->
+                <div class="crm-card" style="max-width: 500px; display: flex; flex-direction: row; justify-content: space-between; align-items: center; border-left: 4px solid #3498db; margin-top: 15px;">
+                    <div>
+                        <h3 style="color: #3498db; margin-bottom: 5px;">Migrate Legacy Images</h3>
+                        <p style="font-size: 0.85rem; opacity: 0.8;">Push all existing artist profile photos into the CRM Moderation queue.</p>
+                    </div>
+                    <button class="btn-primary" style="background: #3498db; width: auto; padding: 10px 20px;" onclick="migrateLegacyGallery()" id="btn-migrate">Migrate</button>
+                </div>
+                
             </section>
         </main>
     </div>
