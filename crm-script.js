@@ -1182,13 +1182,18 @@ async function loadCRMGallery() {
     grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading images...</p>';
 
     try {
-        // FIXED: Hardcoded absolute URL to prevent double /crm/crm/ paths
         const res = await fetch('https://api.momentoo.in/api/crm/gallery/all');
         const data = await res.json();
 
+        // NEW: If the backend throws an error, print it directly to the CRM screen
+        if (!data.success) {
+            grid.innerHTML = `<p style="color: red; grid-column: 1/-1; padding: 20px;">Database Error: ${data.error}</p>`;
+            return;
+        }
+
         crmGalleryData = { pending: [], approved: [] };
 
-        if (data.success && data.data) {
+        if (data.data) {
             data.data.forEach(item => {
                 if (item.is_approved) {
                     crmGalleryData.approved.push(item);
@@ -1199,8 +1204,7 @@ async function loadCRMGallery() {
         }
         renderGalleryGrid(currentGalleryTab);
     } catch (e) {
-        grid.innerHTML = '<p style="color: red; grid-column: 1/-1;">Failed to load images. Please check your connection.</p>';
-        console.error("Gallery Fetch Error:", e);
+        grid.innerHTML = `<p style="color: red; grid-column: 1/-1;">Network/Fetch Crash: ${e.message}</p>`;
     }
 }
 
