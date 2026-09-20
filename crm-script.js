@@ -715,6 +715,31 @@ async function flipMaintenanceSwitch() {
     }
 }
 
+async function migrateLegacyGallery() {
+    if(!confirm("This will scan all artist profiles and push their existing images into the Pending Approvals queue. Proceed?")) return;
+
+    const btn = document.getElementById('btn-migrate');
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('https://api.momentoo.in/api/crm/system/migrate-gallery', { method: 'POST' });
+        const data = await res.json();
+
+        if(data.success) {
+            alert(`Migration Complete! ${data.count} existing images were pushed to your Pending queue.`);
+            loadCRMGallery(); // Refresh the gallery data automatically
+        } else {
+            alert("Migration failed.");
+        }
+    } catch (e) {
+        alert("Network error.");
+    } finally {
+        btn.innerText = "Migrate";
+        btn.disabled = false;
+    }
+}
+
 function openQuotationModal(ticketId) {
     const booking = crmBookingData.pending.find(b => b.ticket_id === ticketId);
     if (!booking) return alert("Booking data not found.");
