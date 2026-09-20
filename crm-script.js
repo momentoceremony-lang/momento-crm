@@ -1132,9 +1132,7 @@ async function loadCRMGallery() {
     const container = document.getElementById('tab-gallery');
     if (!container) return;
 
-    // Initialize UI with correct Refresh button and Filter tabs
     if (!document.getElementById('crm-gallery-grid')) {
-        // Note: Removed the hardcoded HTML from index(1).html and moved it here so it renders dynamically
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <div>
@@ -1155,7 +1153,8 @@ async function loadCRMGallery() {
     grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading images...</p>';
 
     try {
-        const res = await fetch(`${API_BASE_URL}/crm/gallery/all`);
+        // FIXED: Hardcoded absolute URL to prevent double /crm/crm/ paths
+        const res = await fetch('https://api.momentoo.in/api/crm/gallery/all');
         const data = await res.json();
 
         crmGalleryData = { pending: [], approved: [] };
@@ -1172,6 +1171,7 @@ async function loadCRMGallery() {
         renderGalleryGrid(currentGalleryTab);
     } catch (e) {
         grid.innerHTML = '<p style="color: red; grid-column: 1/-1;">Failed to load images. Please check your connection.</p>';
+        console.error("Gallery Fetch Error:", e);
     }
 }
 
@@ -1245,9 +1245,10 @@ function renderGalleryGrid(filter) {
 }
 
 async function approveGalleryImage(id) {
-    const user = JSON.parse(localStorage.getItem('crmUser'));
+    const user = JSON.parse(localStorage.getItem('crmUser')) || { username: 'Admin' };
     try {
-        const res = await fetch(`${API_BASE_URL}/crm/gallery/approve`, {
+        // FIXED: Absolute URL
+        const res = await fetch('https://api.momentoo.in/api/crm/gallery/approve', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, adminName: user.username })
         });
@@ -1259,7 +1260,8 @@ async function approveGalleryImage(id) {
 async function rejectGalleryImage(id) {
     if(!confirm("Are you sure you want to permanently delete this image from the server?")) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/crm/gallery/reject`, {
+        // FIXED: Absolute URL
+        const res = await fetch('https://api.momentoo.in/api/crm/gallery/reject', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
         });
