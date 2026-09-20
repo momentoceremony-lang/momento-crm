@@ -715,8 +715,11 @@ async function flipMaintenanceSwitch() {
     }
 }
 
+// ==========================================
+// SYSTEM CONTROLS: MIGRATE LEGACY IMAGES
+// ==========================================
 async function migrateLegacyGallery() {
-    if(!confirm("This will scan all artist profiles and push their existing images into the Pending Approvals queue. Proceed?")) return;
+    if(!confirm("This will scan all artist profiles and push their existing Cloudinary images into the Pending Approvals queue. Proceed?")) return;
 
     const btn = document.getElementById('btn-migrate');
     btn.innerText = "Processing...";
@@ -727,13 +730,14 @@ async function migrateLegacyGallery() {
         const data = await res.json();
 
         if(data.success) {
-            alert(`Migration Complete! ${data.count} existing images were pushed to your Pending queue.`);
+            alert(`Migration Complete! ${data.count} existing Cloudinary images were pushed to your Pending queue.`);
             loadCRMGallery(); // Refresh the gallery data automatically
         } else {
-            alert("Migration failed.");
+            alert("Migration failed: " + data.error);
         }
     } catch (e) {
-        alert("Network error.");
+        alert("Network error. Check console.");
+        console.error("Migration trigger error:", e);
     } finally {
         btn.innerText = "Migrate";
         btn.disabled = false;
