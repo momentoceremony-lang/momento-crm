@@ -53,42 +53,64 @@ function checkCRMAuth() {
 
     const user = JSON.parse(userString);
 
-    // 1. Check if forced password reset is required
     if (user.must_reset) {
         document.getElementById('modal-reset-password').style.display = 'block';
         return;
     }
 
-    // 2. Hide login, show dashboard
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('dashboard-container').style.display = 'flex';
     
+    // Determine Admin status
+    const isAdmin = user.role === 'admin' || user.role === 'developer';
+
+    // 1. VISUAL LOCKDOWN: Hide/Show sidebar links based on permissions
+    const menuVer = document.getElementById('menu-verification');
+    const menuBook = document.getElementById('menu-bookings');
+    const menuFeed = document.getElementById('menu-feedback');
+    const menuGal = document.getElementById('menu-gallery');
+
+    if (menuVer) menuVer.style.display = (isAdmin || user.p_verification) ? 'block' : 'none';
+    if (menuBook) menuBook.style.display = (isAdmin || user.p_bookings) ? 'block' : 'none';
+    if (menuFeed) menuFeed.style.display = (isAdmin || user.p_feedback) ? 'block' : 'none';
+    if (menuGal) menuGal.style.display = (isAdmin || user.p_gallery) ? 'block' : 'none';
+
+    // 2. DYNAMIC ROUTING: Find their default Home tab
+    let defaultTab = 'verification';
+    if (!isAdmin) {
+        if (user.p_verification) defaultTab = 'verification';
+        else if (user.p_bookings) defaultTab = 'bookings';
+        else if (user.p_feedback) defaultTab = 'feedback';
+        else if (user.p_gallery) defaultTab = 'gallery';
+    }
+
+    // Load data modules
     loadPendingArtists();
     loadBookings();
     fetchSystemStatus(); 
     initFeedbackUI(); 
     loadFeedback();   
     loadCRMGallery(); 
-    loadCrmUsers(); // NEW: Load Staff Accounts
+    if (isAdmin) loadCrmUsers(); 
     
-    // 4. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
     
     if (user.role === 'admin') {
         document.getElementById('menu-admin').style.display = 'block';
     } else if (user.role === 'developer') {
         document.getElementById('menu-dev').style.display = 'block';
-        document.getElementById('menu-admin').style.display = 'block'; // FIXED: Developer gets Admin tab access
+        document.getElementById('menu-admin').style.display = 'block';
     }
 
-    // Init URL Routing
-    if (!window.location.hash) {
-        window.history.replaceState({ tab: 'verification' }, "", "#verification");
+    // 3. SET DEFAULT HASH AND RENDER
+    if (!window.location.hash || window.location.hash === '#verification' && !isAdmin && !user.p_verification) {
+        // If they have no hash, OR they are trying to access verification without permission
+        window.history.replaceState({ tab: defaultTab }, "", `#${defaultTab}`);
+        executeVisualTabSwitch(defaultTab);
     } else {
         executeVisualTabSwitch(window.location.hash.replace('#', ''));
     }
 
-    // 5. INJECT MOBILE PROFILE HEADER INTO DRAWER
     const sidebarBrand = document.querySelector('.sidebar-brand');
     if (!document.getElementById('crm-drawer-profile') && window.innerWidth <= 850) {
         const initials = user.username.substring(0, 2).toUpperCase();
@@ -161,7 +183,6 @@ function executeVisualTabSwitch(tabName) {
     const sidebar = document.querySelector('.crm-sidebar');
     const overlay = document.getElementById('mobile-drawer-overlay');
     
-    // FIXED: Properly close the sidebar, hide the dark overlay, and unlock scrolling
     if (sidebar && sidebar.classList.contains('show-menu')) {
         sidebar.classList.remove('show-menu');
         if (overlay) overlay.classList.remove('show');
@@ -177,9 +198,17 @@ function executeVisualTabSwitch(tabName) {
     const targetLink = document.querySelector(`.sidebar-menu li[onclick="switchTab('${tabName}')"]`);
     if (targetLink) targetLink.classList.add('active');
 
-    // Update Header Title
-    const titles = { 'verification': 'Artist Verification', 'bookings': 'Booking Pipeline', 'feedback': 'Customer Feedback', 'admin': 'User Management', 'developer': 'System Controls' };
-    document.getElementById('tab-title').innerText = titles[tabName] || 'Dashboard';
+    // 4. INJECT WELCOME GREETING INTO HEADER
+    const titles = { 'verification': 'Artist Verification', 'bookings': 'Booking Pipeline', 'feedback': 'Customer Feedback', 'gallery': 'Gallery Moderation', 'admin': 'User Management', 'developer': 'System Controls' };
+    const userString = localStorage.getItem('crmUser');
+    let welcomeHTML = '';
+    
+    if (userString) {
+        const user = JSON.parse(userString);
+        welcomeHTML = `<span style="display: block; font-size: 1rem; font-family: 'Lato', sans-serif; opacity: 0.8; margin-top: 5px; color: var(--primary-color);">Welcome, @${user.username}</span>`;
+    }
+    
+    document.getElementById('tab-title').innerHTML = `${titles[tabName] || 'Dashboard'} ${welcomeHTML}`;
 }
 
 function toggleSidebar() {
@@ -222,11 +251,25 @@ window.addEventListener('popstate', function(event) {
     
     const currentTabId = currentTab.id.replace('tab-', '');
     
-    // If they are on the Main Home Screen (Verification)
-    if (currentTabId === 'verification') {
+    // Find the user's actual default home tab
+    let defaultTab = 'verification';
+    const userString = localStorage.getItem('crmUser');
+    if (userString) {
+        const user = JSON.parse(userString);
+        const isAdmin = user.role === 'admin' || user.role === 'developer';
+        if (!isAdmin) {
+            if (user.p_verification) defaultTab = 'verification';
+            else if (user.p_bookings) defaultTab = 'bookings';
+            else if (user.p_feedback) defaultTab = 'feedback';
+            else if (user.p_gallery) defaultTab = 'gallery';
+        }
+    }
+    
+    // If they are on their Home Screen
+    if (currentTabId === defaultTab) {
         if (!backPressedOnce) {
             backPressedOnce = true;
-            window.history.pushState({ tab: 'verification' }, "", "#verification"); 
+            window.history.pushState({ tab: defaultTab }, "", `#${defaultTab}`); 
             
             const toast = document.createElement('div');
             toast.innerText = "Press back again to exit CRM";
@@ -243,9 +286,9 @@ window.addEventListener('popstate', function(event) {
             window.location.href = "about:blank"; // Exits App
         }
     } else {
-        // If they hit back from ANY OTHER TAB, force them to the home dashboard
-        window.history.pushState({ tab: 'verification' }, "", "#verification");
-        executeVisualTabSwitch('verification');
+        // If they hit back from ANY OTHER TAB, force them to their specific home dashboard
+        window.history.pushState({ tab: defaultTab }, "", `#${defaultTab}`);
+        executeVisualTabSwitch(defaultTab);
     }
 });
 
