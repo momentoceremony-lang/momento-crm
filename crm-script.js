@@ -63,13 +63,13 @@ function checkCRMAuth() {
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('dashboard-container').style.display = 'flex';
     
-    // 3. Load all dashboard modules
     loadPendingArtists();
     loadBookings();
     fetchSystemStatus(); 
     initFeedbackUI(); 
     loadFeedback();   
-    loadCRMGallery(); // NEW: Load Gallery Images
+    loadCRMGallery(); 
+    loadCrmUsers(); // NEW: Load Staff Accounts
     
     // 4. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
@@ -78,6 +78,7 @@ function checkCRMAuth() {
         document.getElementById('menu-admin').style.display = 'block';
     } else if (user.role === 'developer') {
         document.getElementById('menu-dev').style.display = 'block';
+        document.getElementById('menu-admin').style.display = 'block'; // FIXED: Developer gets Admin tab access
     }
 
     // Init URL Routing
@@ -1301,4 +1302,240 @@ async function rejectGalleryImage(id) {
         const data = await res.json();
         if (data.success) loadCRMGallery();
     } catch(e) { alert('Network error while rejecting.'); }
+}
+
+// ==========================================
+// CRM USER MANAGEMENT ENGINE
+// ==========================================
+let allCrmUsers = [];
+
+async function loadCrmUsers() {
+    const container = document.getElementById('tab-admin');
+    if (!container) return;
+
+    // Build the structural UI if it doesn't exist yet
+    if (!document.getElementById('crm-users-grid')) {
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h2 style="font-size: 1.8rem; color: var(--primary-color);">User Management</h2>
+                    <p style="opacity: 0.8; font-size: 0.9rem; margin:0;">Create staff accounts and manage system permissions.</p>
+                </div>
+                <button class="btn-primary" style="width: auto; padding: 10px 20px; background: #27ae60;" onclick="openUserModal()">+ Create User</button>
+            </div>
+            <div id="crm-users-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;"></div>
+        `;
+        
+        // Inject the Create/Edit Modal into the body
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modal-manage-user" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                <div class="modal-content auth-box" style="background:white; padding:30px; border-radius:15px; width:90%; max-width:500px; max-height: 90vh; overflow-y: auto; text-align: left;">
+                    <h3 id="user-modal-title" style="color:var(--primary-color); margin-top:0;">Create Staff Account</h3>
+                    
+                    <input type="hidden" id="manage-user-id">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                        <div>
+                            <label style="font-size: 0.8rem; opacity: 0.8;">Username (Login ID)</label>
+                            <input type="text" id="manage-user-username" class="crm-input" placeholder="e.g. staff_john" autocomplete="off">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; opacity: 0.8;">Full Name</label>
+                            <input type="text" id="manage-user-fullname" class="crm-input" placeholder="John Doe">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                        <div>
+                            <label style="font-size: 0.8rem; opacity: 0.8;">Email</label>
+                            <input type="email" id="manage-user-email" class="crm-input" placeholder="john@example.com">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; opacity: 0.8;">Gender</label>
+                            <select id="manage-user-gender" class="crm-input" style="padding: 12px; height: auto;">
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #fcf9f6; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: var(--primary-color);">Module Access Permissions</h4>
+                        <label style="display: block; margin-bottom: 8px; cursor: pointer;"><input type="checkbox" id="perm-ver" checked> Artist Verification</label>
+                        <label style="display: block; margin-bottom: 8px; cursor: pointer;"><input type="checkbox" id="perm-book" checked> Booking Pipeline</label>
+                        <label style="display: block; margin-bottom: 8px; cursor: pointer;"><input type="checkbox" id="perm-feed" checked> Customer Feedback</label>
+                        <label style="display: block; margin-bottom: 8px; cursor: pointer;"><input type="checkbox" id="perm-gal" checked> Gallery Moderation</label>
+                    </div>
+
+                    <p id="user-modal-notice" style="font-size: 0.8rem; color: #e74c3c; margin-bottom: 15px;">New accounts will be created with the default password: <strong>B00T.ME</strong></p>
+
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="document.getElementById('modal-manage-user').style.display='none'" style="flex:1; padding:12px; border-radius:8px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold;">Cancel</button>
+                        <button id="btn-save-user" onclick="saveCrmUser()" style="flex:2; padding:12px; border-radius:8px; background:var(--accent-color); color:#0f0f10; border:none; cursor:pointer; font-weight:bold;">Save User</button>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    const grid = document.getElementById('crm-users-grid');
+    grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading users...</p>';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/users`);
+        const data = await res.json();
+        
+        if (data.success) {
+            allCrmUsers = data.data;
+            grid.innerHTML = '';
+            
+            allCrmUsers.forEach(u => {
+                const isAdmin = u.role === 'admin' || u.role === 'developer';
+                const avatar = u.full_name ? u.full_name.substring(0, 2).toUpperCase() : u.username.substring(0, 2).toUpperCase();
+                
+                // Build visual tags for permissions
+                let permsHtml = '';
+                if (isAdmin) {
+                    permsHtml = '<span style="background: #27ae60; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem;">Full System Access</span>';
+                } else {
+                    if(u.p_verification) permsHtml += '<span style="background: #eef2f5; color: #333; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px;">Verification</span>';
+                    if(u.p_bookings) permsHtml += '<span style="background: #eef2f5; color: #333; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px;">Bookings</span>';
+                    if(u.p_feedback) permsHtml += '<span style="background: #eef2f5; color: #333; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px;">Feedback</span>';
+                    if(u.p_gallery) permsHtml += '<span style="background: #eef2f5; color: #333; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px;">Gallery</span>';
+                }
+
+                grid.innerHTML += `
+                    <div class="crm-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 4px solid ${isAdmin ? '#e74c3c' : '#3498db'};">
+                        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+                            <div style="width: 45px; height: 45px; border-radius: 50%; background: ${isAdmin ? '#fdf0f0' : '#ebf5fb'}; color: ${isAdmin ? '#e74c3c' : '#3498db'}; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem;">${avatar}</div>
+                            <div>
+                                <h3 style="margin: 0; color: var(--primary-color);">${u.full_name || u.username}</h3>
+                                <p style="margin: 0; font-size: 0.8rem; opacity: 0.7; font-family: monospace;">@${u.username} | ${u.role.toUpperCase()}</p>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 15px;">
+                            <strong>Email:</strong> ${u.email || 'N/A'}<br>
+                            <strong>Gender:</strong> ${u.gender || 'N/A'}<br>
+                            <div style="margin-top: 10px;">${permsHtml}</div>
+                        </div>
+                        
+                        ${!isAdmin ? `
+                        <div style="display: flex; gap: 8px; border-top: 1px dashed #ddd; padding-top: 15px;">
+                            <button onclick="openUserModal(${u.id})" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #3498db; background: transparent; color: #3498db; cursor: pointer; font-weight: bold;">Edit Access</button>
+                            <button onclick="resetUserPass(${u.id})" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #f39c12; background: transparent; color: #f39c12; cursor: pointer; font-weight: bold;">Reset Pass</button>
+                            <button onclick="deleteUser(${u.id})" style="padding: 8px 12px; border-radius: 6px; border: none; background: #e74c3c; color: white; cursor: pointer;">🗑️</button>
+                        </div>
+                        ` : '<p style="margin:0; text-align:center; opacity:0.5; font-size:0.8rem; border-top: 1px dashed #ddd; padding-top: 15px;">System Core Account</p>'}
+                    </div>
+                `;
+            });
+        }
+    } catch (e) {
+        grid.innerHTML = '<p style="color: red; grid-column: 1/-1;">Failed to fetch users.</p>';
+    }
+}
+
+function openUserModal(id = null) {
+    const title = document.getElementById('user-modal-title');
+    const notice = document.getElementById('user-modal-notice');
+    const usernameInput = document.getElementById('manage-user-username');
+    
+    if (id) {
+        // Edit Mode
+        const u = allCrmUsers.find(x => x.id === id);
+        if(!u) return;
+        
+        title.innerText = "Edit Staff Account";
+        notice.style.display = 'none';
+        
+        document.getElementById('manage-user-id').value = u.id;
+        usernameInput.value = u.username;
+        usernameInput.disabled = true; // Cannot change username after creation
+        document.getElementById('manage-user-fullname').value = u.full_name || '';
+        document.getElementById('manage-user-email').value = u.email || '';
+        document.getElementById('manage-user-gender').value = u.gender || 'Other';
+        
+        document.getElementById('perm-ver').checked = u.p_verification;
+        document.getElementById('perm-book').checked = u.p_bookings;
+        document.getElementById('perm-feed').checked = u.p_feedback;
+        document.getElementById('perm-gal').checked = u.p_gallery;
+    } else {
+        // Create Mode
+        title.innerText = "Create Staff Account";
+        notice.style.display = 'block';
+        
+        document.getElementById('manage-user-id').value = '';
+        usernameInput.value = '';
+        usernameInput.disabled = false;
+        document.getElementById('manage-user-fullname').value = '';
+        document.getElementById('manage-user-email').value = '';
+        document.getElementById('manage-user-gender').value = 'Male';
+        
+        document.getElementById('perm-ver').checked = true;
+        document.getElementById('perm-book').checked = true;
+        document.getElementById('perm-feed').checked = true;
+        document.getElementById('perm-gal').checked = true;
+    }
+    
+    document.getElementById('modal-manage-user').style.display = 'flex';
+}
+
+async function saveCrmUser() {
+    const id = document.getElementById('manage-user-id').value;
+    const username = document.getElementById('manage-user-username').value.trim();
+    const fullName = document.getElementById('manage-user-fullname').value.trim();
+    const email = document.getElementById('manage-user-email').value.trim();
+    const gender = document.getElementById('manage-user-gender').value;
+    
+    const p_ver = document.getElementById('perm-ver').checked;
+    const p_book = document.getElementById('perm-book').checked;
+    const p_feed = document.getElementById('perm-feed').checked;
+    const p_gal = document.getElementById('perm-gal').checked;
+
+    if (!username || !fullName) return alert("Username and Full Name are required.");
+
+    const btn = document.getElementById('btn-save-user');
+    btn.innerText = "Saving..."; btn.disabled = true;
+
+    try {
+        const endpoint = id ? `${API_BASE_URL}/users/update` : `${API_BASE_URL}/users/create`;
+        const payload = { id, username, fullName, email, gender, p_ver, p_book, p_feed, p_gal };
+
+        const res = await fetch(endpoint, {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('modal-manage-user').style.display = 'none';
+            loadCrmUsers(); // Refresh Grid
+        } else alert("Error: " + data.error);
+    } catch (e) {
+        alert("Network error.");
+    } finally {
+        btn.innerText = "Save User"; btn.disabled = false;
+    }
+}
+
+async function resetUserPass(id) {
+    if(!confirm("Reset this user's password back to 'B00T.ME'? They will be forced to change it on their next login.")) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/users/reset-pass`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if(data.success) alert("Password reset successfully.");
+    } catch(e) { alert("Network error."); }
+}
+
+async function deleteUser(id) {
+    if(!confirm("WARNING: Are you sure you want to permanently delete this staff account?")) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/users/delete/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) loadCrmUsers();
+    } catch(e) { alert("Network error."); }
 }
