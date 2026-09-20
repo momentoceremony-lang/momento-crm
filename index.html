@@ -56,6 +56,8 @@
                 <li class="active" onclick="switchTab('verification')">🛡️ Verification</li>
                 <li onclick="switchTab('bookings')">📅 Bookings</li>
                 <li onclick="switchTab('feedback')">💬 Feedback</li>
+                <!-- NEW: Gallery Link -->
+                <li onclick="switchTab('gallery')">🖼️ Gallery Moderation</li>
                 <li id="menu-admin" onclick="switchTab('admin')" style="display: none;">👥 Manage Users</li>
                 <li id="menu-dev" onclick="switchTab('developer')" style="display: none; color: #e74c3c;">⚙️ System Switch</li>
                 <li onclick="logoutCRM()" style="color: #d19a8a; margin-top: auto;">🚪 Logout</li>
@@ -134,6 +136,19 @@
                 <p>Feedback module loading...</p>
             </section>
 
+            <!-- NEW: GALLERY MODERATION TAB -->
+            <section id="tab-gallery" class="crm-tab">
+                <div style="margin-bottom: 30px;">
+                    <h2 style="font-size: 1.8rem; color: var(--primary-color);">Gallery Moderation</h2>
+                    <p style="opacity: 0.8; font-size: 0.9rem;">Review and approve images submitted by artists for the public gallery.</p>
+                </div>
+                <!-- crm-script.js will dynamically inject the grid here -->
+            </section>
+
+            <section id="tab-admin" class="crm-tab">
+                <p>Admin controls loading...</p>
+            </section>
+            
             <section id="tab-admin" class="crm-tab">
                 <p>Admin controls loading...</p>
             </section>
