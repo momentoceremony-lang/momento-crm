@@ -67,7 +67,9 @@ function checkCRMAuth() {
     loadPendingArtists();
     loadBookings();
     fetchSystemStatus(); 
-
+    initFeedbackUI(); // NEW: Generates the Feedback HTML
+    loadFeedback();   // NEW: Fetches the Data
+    
     // 4. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
     
@@ -923,4 +925,198 @@ async function sendFinalPaymentLink(ticketId, balanceDue, customerEmail, custome
             loadBookings(); // Automatically refresh the UI
         } else alert("Error: " + data.error);
     } catch(e) { alert("Error sending payment link."); }
+}
+
+
+// ==========================================
+// CUSTOMER FEEDBACK ENGINE
+// ==========================================
+let crmFeedbackData = { new: [], reviewed: [] };
+let currentFeedbackTab = 'new';
+
+function initFeedbackUI() {
+    const container = document.getElementById('tab-feedback');
+    if(!container) return; // Failsafe
+    
+    // Inject Filter Buttons and Grid
+    if(!container.querySelector('.feedback-controls')) {
+        container.innerHTML = `
+            <div class="feedback-controls" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button id="btn-feed-new" onclick="renderFeedbackGrid('new')" style="padding: 10px 20px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer;">New Reviews (<span id="count-feed-new">0</span>)</button>
+                <button id="btn-feed-reviewed" onclick="renderFeedbackGrid('reviewed')" style="padding: 10px 20px; border-radius: 20px; border: 1px solid #ccc; background: transparent; cursor: pointer;">All Reviewed (<span id="count-feed-reviewed">0</span>)</button>
+            </div>
+            <div id="feedback-dynamic-grid" style="display: flex; flex-direction: column; align-items: center; gap: 20px;"></div>
+        `;
+    }
+
+    // Inject the Warning Email Modal invisibly into the body
+    if(!document.getElementById('modal-warning')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="modal-warning" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                <div class="modal-content auth-box" style="background:white; padding:30px; border-radius:15px; width:90%; max-width:500px; margin: 10vh auto; text-align: left;">
+                    <h3 style="color:#e74c3c; margin-top:0;">Send Warning to Artist</h3>
+                    <p id="warning-pro-name" style="font-weight:bold; margin-bottom: 15px;"></p>
+                    <textarea id="warning-text" placeholder="Type your warning/feedback message to the artist here..." style="width:100%; height:120px; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px; resize:vertical; font-family: inherit;"></textarea>
+                    <input type="hidden" id="warning-ticket-id">
+                    <input type="hidden" id="warning-pro-email">
+                    <input type="hidden" id="warning-pro-name-hidden">
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="document.getElementById('modal-warning').style.display='none'" style="flex:1; padding:12px; border-radius:8px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold;">Cancel</button>
+                        <button id="btn-send-warning" onclick="submitWarning()" style="flex:2; padding:12px; border-radius:8px; background:#e74c3c; color:white; border:none; cursor:pointer; font-weight:bold;">Send Email & Mark Reviewed</button>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+}
+
+async function loadFeedback() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/feedback`);
+        const data = await res.json();
+        
+        crmFeedbackData = { new: [], reviewed: [] };
+        
+        if (data.success && data.data) {
+            data.data.forEach(item => {
+                // If it has an admin's name attached, it goes to "Reviewed"
+                if (item.crm_reviewed_by) {
+                    crmFeedbackData.reviewed.push(item);
+                } else {
+                    crmFeedbackData.new.push(item);
+                }
+            });
+        }
+        renderFeedbackGrid(currentFeedbackTab);
+    } catch (e) {
+        console.error("Feedback fetch error:", e);
+    }
+}
+
+function renderFeedbackGrid(filter) {
+    currentFeedbackTab = filter;
+    const grid = document.getElementById('feedback-dynamic-grid');
+    if(!grid) return;
+
+    // Update Counters
+    document.getElementById('count-feed-new').innerText = crmFeedbackData.new.length;
+    document.getElementById('count-feed-reviewed').innerText = crmFeedbackData.reviewed.length;
+
+    // Update Button Styles
+    const btnNew = document.getElementById('btn-feed-new');
+    const btnRev = document.getElementById('btn-feed-reviewed');
+
+    if(filter === 'new') {
+        btnNew.style.background = 'var(--primary-color)'; btnNew.style.color = 'white'; btnNew.style.border = 'none';
+        btnRev.style.background = 'transparent'; btnRev.style.color = '#333'; btnRev.style.border = '1px solid #ccc';
+    } else {
+        btnRev.style.background = 'var(--primary-color)'; btnRev.style.color = 'white'; btnRev.style.border = 'none';
+        btnNew.style.background = 'transparent'; btnNew.style.color = '#333'; btnNew.style.border = '1px solid #ccc';
+    }
+
+    grid.innerHTML = '';
+    const data = crmFeedbackData[filter];
+
+    if(data.length === 0) {
+        grid.innerHTML = `<p style="opacity:0.6; padding: 20px;">No ${filter} feedback found.</p>`;
+        return;
+    }
+
+    data.forEach(item => {
+        // Generate Star UI
+        const starsHtml = '<span style="color:#f39c12; font-size:1.4rem;">★</span>'.repeat(item.rating) + '<span style="color:#ddd; font-size:1.4rem;">★</span>'.repeat(5 - item.rating);
+        const borderColor = item.rating >= 4 ? '#27ae60' : (item.rating == 3 ? '#f39c12' : '#e74c3c');
+        
+        let reviewFooter = '';
+        
+        // NEW REVIEWS: Show action buttons
+        if(filter === 'new') {
+            reviewFooter = `
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button onclick="markFeedbackReviewed('${item.ticket_id}')" style="flex:1; background:#27ae60; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">✅ Mark as Reviewed</button>
+                    <button onclick="openWarningModal('${item.ticket_id}', '${item.pro_name}', '${item.pro_email}')" style="flex:1; background:#e74c3c; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;">⚠️ Send Warning Mail</button>
+                </div>
+            `;
+        } 
+        // ALREADY REVIEWED: Show the audit trail
+        else {
+            reviewFooter = `
+                <div style="margin-top:15px; padding:15px; background:#f9f9f9; border-radius:8px; font-size:0.9rem; color:#555; border: 1px solid #eee;">
+                    <strong>Admin Audit Trail:</strong><br>
+                    <span style="display:inline-block; margin-top: 5px;">Reviewed By: <strong>${item.crm_reviewed_by}</strong> on ${new Date(item.crm_reviewed_at).toLocaleDateString()}</span><br>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                        ${item.crm_warning_sent ? `<strong style="color:#e74c3c;">⚠️ Warning Sent:</strong><br><em>"${item.crm_warning_text}"</em>` : '<strong style="color:#27ae60;">✅ Marked as OK (No Action Required)</strong>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        grid.innerHTML += `
+            <div class="crm-card" style="width: 100%; max-width: 1000px; padding:25px; background:white; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid ${borderColor}">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <h3 style="margin:0 0 5px 0; color:var(--primary-color);">${item.pro_name}</h3>
+                        <p style="margin:0; font-size:0.9rem; opacity:0.8;">Client: <strong>${item.customer_name}</strong> | ${item.customer_email}</p>
+                    </div>
+                    <span style="font-family: monospace; color: var(--accent-color); font-weight: bold; background: #fcf9f6; padding: 6px 12px; border-radius: 6px; font-size: 0.9rem;">${item.ticket_id}</span>
+                </div>
+                
+                <div style="margin: 20px 0 10px 0;">${starsHtml}</div>
+                
+                <div style="font-style:italic; color:#444; background:#fcf9f6; padding:20px; border-radius:8px; border-left:3px solid #d4af37; margin:0; line-height: 1.6; font-size: 1.05rem;">
+                    "${item.review_text}"
+                </div>
+                
+                ${reviewFooter}
+            </div>
+        `;
+    });
+}
+
+async function markFeedbackReviewed(ticketId) {
+    const user = JSON.parse(localStorage.getItem('crmUser'));
+    if(!confirm("Mark this feedback as reviewed? No warning email will be sent.")) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/feedback/review`, {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ ticketId, adminName: user.username })
+        });
+        const data = await res.json();
+        if(data.success) loadFeedback();
+    } catch(e) { alert("Network error."); }
+}
+
+function openWarningModal(ticketId, proName, proEmail) {
+    document.getElementById('warning-ticket-id').value = ticketId;
+    document.getElementById('warning-pro-name-hidden').value = proName;
+    document.getElementById('warning-pro-email').value = proEmail;
+    document.getElementById('warning-pro-name').innerText = `Artist: ${proName}`;
+    document.getElementById('warning-text').value = '';
+    document.getElementById('modal-warning').style.display = 'flex';
+}
+
+async function submitWarning() {
+    const ticketId = document.getElementById('warning-ticket-id').value;
+    const proName = document.getElementById('warning-pro-name-hidden').value;
+    const proEmail = document.getElementById('warning-pro-email').value;
+    const text = document.getElementById('warning-text').value.trim();
+    const user = JSON.parse(localStorage.getItem('crmUser'));
+
+    if(!text) return alert("Please type a warning message.");
+
+    const btn = document.getElementById('btn-send-warning');
+    btn.innerText = 'Sending...'; btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/feedback/warning`, {
+            method: 'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ ticketId, adminName: user.username, warningText: text, proEmail, proName })
+        });
+        const data = await res.json();
+        if(data.success) {
+            document.getElementById('modal-warning').style.display='none';
+            loadFeedback(); // Instantly moves it to the "Reviewed" tab
+        } else alert("Error: "+data.error);
+    } catch(e) { alert("Network error"); }
+    finally { btn.innerText = 'Send Email & Mark Reviewed'; btn.disabled = false; }
 }
