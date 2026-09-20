@@ -53,11 +53,12 @@
                 <p id="active-role-badge" class="role-badge"></p>
             </div>
             <ul class="sidebar-menu">
-                <li class="active" onclick="switchTab('verification')">🛡️ Verification</li>
-                <li onclick="switchTab('bookings')">📅 Bookings</li>
-                <li onclick="switchTab('feedback')">💬 Feedback</li>
-                <!-- NEW: Gallery Link -->
-                <li onclick="switchTab('gallery')">🖼️ Gallery Moderation</li>
+                <!-- ADDED IDs to these 4 list items -->
+                <li id="menu-verification" class="active" onclick="switchTab('verification')">🛡️ Verification</li>
+                <li id="menu-bookings" onclick="switchTab('bookings')">📅 Bookings</li>
+                <li id="menu-feedback" onclick="switchTab('feedback')">💬 Feedback</li>
+                <li id="menu-gallery" onclick="switchTab('gallery')">🖼️ Gallery Moderation</li>
+                
                 <li id="menu-admin" onclick="switchTab('admin')" style="display: none;">👥 Manage Users</li>
                 <li id="menu-dev" onclick="switchTab('developer')" style="display: none; color: #e74c3c;">⚙️ System Switch</li>
                 <li onclick="logoutCRM()" style="color: #d19a8a; margin-top: auto;">🚪 Logout</li>
