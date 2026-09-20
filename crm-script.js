@@ -205,7 +205,7 @@ function executeVisualTabSwitch(tabName) {
     
     if (userString) {
         const user = JSON.parse(userString);
-        welcomeHTML = `<span style="display: block; font-size: 1rem; font-family: 'Lato', sans-serif; opacity: 0.8; margin-top: 5px; color: var(--primary-color);">Welcome, @${user.username}</span>`;
+        welcomeHTML = `<span style="display: block; font-size: 1rem; font-family: 'Lato', sans-serif; opacity: 0.8; margin-top: 5px; color: var(--primary-color);">Welcome, ${user.username}</span>`;
     }
     
     document.getElementById('tab-title').innerHTML = `${titles[tabName] || 'Dashboard'} ${welcomeHTML}`;
