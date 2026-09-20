@@ -67,8 +67,9 @@ function checkCRMAuth() {
     loadPendingArtists();
     loadBookings();
     fetchSystemStatus(); 
-    initFeedbackUI(); // NEW: Generates the Feedback HTML
-    loadFeedback();   // NEW: Fetches the Data
+    initFeedbackUI(); 
+    loadFeedback();   
+    loadPendingGallery(); // NEW: Load Gallery Images
     
     // 4. Configure Role-Based Access
     document.getElementById('active-role-badge').innerText = user.role;
@@ -1119,4 +1120,97 @@ async function submitWarning() {
         } else alert("Error: "+data.error);
     } catch(e) { alert("Network error"); }
     finally { btn.innerText = 'Send Email & Mark Reviewed'; btn.disabled = false; }
+}
+
+// ==========================================
+// CRM GALLERY MODERATION ENGINE
+// ==========================================
+async function loadPendingGallery() {
+    const container = document.getElementById('tab-gallery');
+    if (!container) return;
+
+    // Initialize UI if empty
+    if (!document.getElementById('crm-gallery-grid')) {
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <p style="opacity: 0.8; margin:0;">Approve images to push them to the public View.html gallery.</p>
+                <button onclick="loadPendingGallery()" style="padding: 8px 15px; border-radius: 8px; background: #f0f0f0; border: none; cursor: pointer; font-weight: bold;">↻ Refresh</button>
+            </div>
+            <div id="crm-gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;"></div>
+        `;
+    }
+
+    const grid = document.getElementById('crm-gallery-grid');
+    grid.innerHTML = '<p style="opacity: 0.6; grid-column: 1/-1;">Loading pending images...</p>';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/gallery/pending`);
+        const data = await res.json();
+
+        if (data.success) {
+            grid.innerHTML = '';
+            if (data.data.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; background: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"><h3 style="color: #27ae60; margin-bottom: 5px;">All caught up!</h3><p style="opacity: 0.6; margin: 0;">There are no pending images to review.</p></div>';
+                return;
+            }
+
+            data.data.forEach(item => {
+                grid.innerHTML += `
+                    <div class="crm-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; display: flex; flex-direction: column;">
+                        <div style="position: relative;">
+                            <img src="${item.image_url}" style="width: 100%; height: 250px; object-fit: cover; cursor: pointer; border-bottom: 1px solid #eee;" onclick="window.open('${item.image_url}', '_blank')">
+                            <span style="position: absolute; top: 10px; right: 10px; background: var(--accent-color); color: #0f0f10; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">${item.category}</span>
+                        </div>
+                        <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                                <img src="${item.dp_url}" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd;">
+                                <span style="font-weight: bold; color: var(--primary-color);">${item.pro_name}</span>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="approveGalleryImage(${item.id})" style="flex: 1; background: #27ae60; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✅ Approve</button>
+                                <button onclick="rejectGalleryImage(${item.id})" style="flex: 1; background: #e74c3c; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ Reject</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    } catch (e) {
+        grid.innerHTML = '<p style="color: red; grid-column: 1/-1;">Failed to load images. Please check your connection.</p>';
+    }
+}
+
+async function approveGalleryImage(id) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/gallery/approve`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadPendingGallery(); // Refresh the grid
+        } else {
+            alert('Error approving image');
+        }
+    } catch(e) { 
+        alert('Network error while approving.'); 
+    }
+}
+
+async function rejectGalleryImage(id) {
+    if(!confirm("Are you sure you want to reject and delete this image? It will not appear on the public gallery.")) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/gallery/reject`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadPendingGallery(); // Refresh the grid
+        } else {
+            alert('Error rejecting image');
+        }
+    } catch(e) { 
+        alert('Network error while rejecting.'); 
+    }
 }
